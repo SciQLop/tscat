@@ -3,19 +3,24 @@
 import unittest
 from ddt import ddt, data, unpack
 
-from tscat import Event, Catalogue
+import tscat.orm_sqlalchemy
+from tscat import Event, Catalogue, get_events, save, discard, get_catalogues
 
 import datetime as dt
 
 
 @ddt
 class TestCatalogue(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
+        tscat._backend = tscat.orm_sqlalchemy.Backend(testing=True)  # create a memory-database for tests
+
         self.events = [
             Event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick"),
             Event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=2), "Patrick"),
             Event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=3), "Patrick"),
         ]
+
+        save()
 
     @data(
         ("Catalogue Name", "", {}),
@@ -62,6 +67,16 @@ class TestCatalogue(unittest.TestCase):
         with self.assertRaises(ValueError):
             assert Catalogue(name, author, **attrs)
 
+    def test_unequal_catalogues(self):
+        a, b = Catalogue("Catalogue Name1", "Patrick"), Catalogue("Catalogue Name2", "Patrick")
+        self.assertNotEqual(a, b)
+
+        a, b = Catalogue("Catalogue Name", "Patrick", attr1=20), Catalogue("Catalogue Name", "Patrick", attr1=10)
+        self.assertNotEqual(a, b)
+
+        a, b = Catalogue("Catalogue Name", "Patrick", attr1=20), Catalogue("Catalogue Name", "Patrick", attr2=20)
+        self.assertNotEqual(a, b)
+
     def test_constructor_with_dynamic_attribute_manual_access(self):
         dt_val = dt.datetime.now()
         c = Catalogue("Catalogue Name", "Patrick",
@@ -76,28 +91,78 @@ class TestCatalogue(unittest.TestCase):
         self.assertEqual(c.field_bool, True)
         self.assertEqual(c.field_dt, dt_val)
 
+    def test_add_and_get_empty_catalogues(self):
+        catalogues = [Catalogue("Catalogue Name1", "Patrick"), Catalogue("Catalogue Name2", "Patrick")]
+        cat_list = get_catalogues()
+        self.assertListEqual(catalogues, cat_list)
+
+    def test_add_and_get_empty_catalogues_discard_and_save(self):
+        Catalogue("Catalogue Name1", "Patrick")
+        Catalogue("Catalogue Name2", "Patrick")
+
+        discard()
+
+        cat_list = get_catalogues()
+        self.assertListEqual([], cat_list)
+
+        c = Catalogue("Catalogue Name2", "Patrick")
+
+        cat_list = get_catalogues()
+        self.assertListEqual([c], cat_list)
+
+        save()
+
+        cat_list = get_catalogues()
+        self.assertListEqual([c], cat_list)
+
+        c2 = Catalogue("Catalogue Name2", "Patrick")
+
+        cat_list = get_catalogues()
+        self.assertListEqual([c, c2], cat_list)
+
+        discard()
+
+        cat_list = get_catalogues()
+        self.assertListEqual([c], cat_list)
+
     def test_add_events_to_catalogue_constructor(self):
         c = Catalogue("Catalogue Name", "Patrick", events=self.events)
-        self.assertCountEqual(self.events, c._added_events)
+
+        event_list = get_events(c)
+        self.assertListEqual(event_list, self.events)
 
         c.remove_events(self.events[0])
-        self.assertCountEqual(self.events[:1], c._removed_events)
+
+        event_list = get_events(c)
+        self.assertListEqual(event_list, self.events[1:])
 
     def test_add_events_to_catalogue_via_method(self):
         c = Catalogue("Catalogue Name", "Patrick")
         c.add_events(self.events)
-        self.assertCountEqual(self.events, c._added_events)
+
+        event_list = get_events(c)
+        self.assertListEqual(self.events, event_list)
 
         c.remove_events(self.events[0])
-        self.assertCountEqual(self.events[:1], c._removed_events)
+        event_list = get_events(c)
+        self.assertListEqual(event_list, self.events[1:])
 
-    def test_add_event_multiple_times_to_catalogue_via_method(self):
+    def test_add_event_multiple_times_to_catalogue(self):
         c = Catalogue("Catalogue Name", "Patrick")
         c.add_events(self.events[0])
-        c.add_events(self.events[0])
-        self.assertCountEqual(self.events[:1] * 2, c._added_events)
+        with self.assertRaises(ValueError):
+            c.add_events(self.events[0])
 
-        c.remove_events(self.events[0])
-        c.remove_events(self.events[0])
+    def test_catalogues_of_event(self):
+        a = Catalogue("Catalogue Name A", "Patrick")
+        a.add_events(self.events[0])
+        a.add_events(self.events[1])
+        b = Catalogue("Catalogue Name B", "Patrick")
+        b.add_events(self.events[0])
 
-        self.assertCountEqual(self.events[:1] * 2, c._removed_events)
+        cat_list = get_catalogues(self.events[0])
+        self.assertListEqual(cat_list, [a, b])
+
+        cat_list = get_catalogues(self.events[1])
+        self.assertListEqual(cat_list, [a])
+

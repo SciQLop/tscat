@@ -3,6 +3,7 @@
 import unittest
 from ddt import ddt, data, unpack
 
+import tscat.orm_sqlalchemy
 from tscat import Event
 
 import datetime as dt
@@ -10,6 +11,9 @@ import datetime as dt
 
 @ddt
 class TestEvent(unittest.TestCase):
+    def setUp(self) -> None:
+        tscat._backend = tscat.orm_sqlalchemy.Backend(testing=True)  # create a memory-database for tests
+
     @data(
         (dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick", None, {}),
         (dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "", None, {}),
@@ -61,6 +65,16 @@ class TestEvent(unittest.TestCase):
     def test_constructor_various_combinations_value_errorl(self, start, stop, author, uuid, attrs):
         with self.assertRaises(ValueError):
             assert Event(start, stop, author, **attrs, uuid=uuid)
+
+    def test_unequal_events(self):
+        t1, t2 = dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1)
+
+        a, b = Event(t1, t2, "Patrick"), Event(t1, t2, "Patrick"),
+        self.assertNotEqual(a, b)
+
+        # two Events are never equal because of the UUID
+        a, b = Event(t1, t2, "Patrick"), Event(t1, t2, "Patrick"),
+        self.assertNotEqual(a, b)
 
     def test_constructor_with_dynamic_attribute_manual_access(self):
         dt_val = dt.datetime.now()
