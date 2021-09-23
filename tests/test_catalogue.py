@@ -5,6 +5,7 @@ from ddt import ddt, data, unpack
 
 import tscat.orm_sqlalchemy
 from tscat import Event, Catalogue, get_events, save, discard, get_catalogues
+from tscat.filtering import Comparison, Field
 
 import datetime as dt
 
@@ -166,3 +167,48 @@ class TestCatalogue(unittest.TestCase):
         cat_list = get_catalogues(self.events[1])
         self.assertListEqual(cat_list, [a])
 
+@ddt
+class TestDynamicCatalogue(unittest.TestCase):
+    def setUp(self) -> None:
+        tscat._backend = tscat.orm_sqlalchemy.Backend(testing=True)  # create a memory-database for tests
+
+        self.events = [
+            Event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick"),
+            Event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=2), "Patrick"),
+            Event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=3), "Patrick"),
+            Event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=3), "Alexis"),
+        ]
+
+        self.catalogue = Catalogue("Catalogue A", "Patrick", events=self.events)
+
+        save()
+
+    def test_basic_usage(self):
+        dcat = Catalogue("Dynamic Catalogue 'author=Patrick'", "Patrick",
+                         predicate=Comparison("==", Field("author"), "Patrick"))
+
+        events = get_events(dcat)
+        self.assertListEqual(events, self.events[:3])
+
+        event = Event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=3), "Alexis")
+        dcat.add_events(event)
+
+        events = get_events(dcat)
+        self.assertListEqual(events, self.events[0:3] + [event])
+
+        dcat.remove_events(event)
+
+        events = get_events(dcat)
+        self.assertListEqual(events, self.events[0:3])
+
+        # impossible to remove events which are queried with filters
+        with self.assertRaises(ValueError):
+            dcat.remove_events(self.events)
+
+        events = get_events(dcat)
+        self.assertListEqual(events, self.events[0:3])
+
+        catalogues = get_catalogues()
+        self.assertFalse(catalogues[0].is_dynamic())
+        self.assertTrue(catalogues[1].is_dynamic())
+        self.assertEqual(catalogues[1], dcat)

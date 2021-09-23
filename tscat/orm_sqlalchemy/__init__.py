@@ -161,13 +161,21 @@ class Backend:
     def _create_query(self, base: Dict,
                       orm_class: Union[TypeVar(orm.Event), TypeVar(orm.Catalogue)],
                       field: ['events', 'catalogues']) -> Query:
-        if 'predicate' in base:
+        f = None
+
+        if base.get('predicate', None) is not None:
             f = PredicateVisitor(orm_class).visit_predicate(base['predicate'])
-            q = self.session.query(orm_class).filter(f)
-        elif 'entity' in base:  # event
-            q = self.session.query(orm_class).filter(getattr(orm_class, field).any(id=base['entity'].id))
-        else:
-            q = self.session.query(orm_class)
+
+        if base.get('entity') is not None:  # event
+            entity_filter = getattr(orm_class, field).any(id=base['entity'].id)
+            if f is not None:
+                f = or_(f, entity_filter)
+            else:
+                f = entity_filter
+
+        q = self.session.query(orm_class)
+        if f is not None:
+            q = q.filter(f)
         return q
 
     def get_catalogues(self, base: Dict = {}) -> List[Dict]:

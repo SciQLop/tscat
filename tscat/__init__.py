@@ -182,6 +182,9 @@ class Catalogue(_BackendBasedEntity):
         backend().remove_events_from_catalogue(self._backend_entity,
                                                [event._backend_entity for event in _listify(events)])
 
+    def is_dynamic(self):
+        return self.predicate is not None
+
     def __setattr__(self, key, value):
         if key == 'name':
             if not value:
@@ -216,7 +219,8 @@ def get_events(base: Union[Predicate, Catalogue, None] = None) -> List[Event]:
     if isinstance(base, Predicate):
         base = {'predicate': base}
     elif isinstance(base, Catalogue):
-        base = {'entity': base._backend_entity}
+        base = {'entity': base._backend_entity,
+                'predicate': base.predicate}
     else:
         base = {}
 

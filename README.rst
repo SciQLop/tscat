@@ -20,7 +20,7 @@ Time Series Catalogues
 
 
 A library which stores, loads and filters time-series-events and associates them catalogues and
-"smart" catalogues (filter-based).
+dynamic catalogues (filter-based).
 
 
 * Free software: GNU General Public License v3

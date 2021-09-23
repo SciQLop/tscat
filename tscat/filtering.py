@@ -24,7 +24,8 @@ class Attribute:
 
 @typechecked
 class Predicate:
-    pass
+    def __eq__(self, o):
+        return repr(self) == repr(o)
 
 
 @typechecked
