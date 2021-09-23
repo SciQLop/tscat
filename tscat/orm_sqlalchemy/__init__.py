@@ -138,10 +138,12 @@ class Backend:
         if entity:  # update
             entity.name = catalogue['name']
             entity.author = catalogue['author']
+            entity.uuid = catalogue['uuid']
             entity.tags = tags
             entity.predicate = serialized_predicate
         else:
-            entity = orm.Catalogue(catalogue['name'], catalogue['author'], tags, serialized_predicate)
+            entity = orm.Catalogue(catalogue['name'], catalogue['author'], catalogue['uuid'],
+                                   tags, serialized_predicate)
 
         # need to use []-operator because of proxy-class in sqlalchemy - update() on __dict__ does not work
         for k, v in catalogue['attributes'].items():
@@ -212,6 +214,7 @@ class Backend:
             attr = {v.key: v.value for _, v in c.attributes.items()}
             catalogue = {"name": c.name,
                          "author": c.author,
+                         "uuid": c.uuid,
                          "tags": [tag.name for tag in c.tags],
                          "predicate": pickle.loads(c.predicate) if c.predicate else None,
                          "attributes": attr,

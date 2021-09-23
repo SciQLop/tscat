@@ -1,8 +1,9 @@
 import datetime as dt
+
 from typing import Union
 from typing_extensions import Literal
-
 from typeguard import typechecked
+import uuid
 
 
 @typechecked
@@ -95,10 +96,16 @@ class Any(Predicate):
 
 @typechecked
 class In(Predicate):
-
     def __init__(self, lhs: str, rhs: Union[Field, Attribute]):
         self._lhs = lhs
         self._rhs = rhs
 
     def __repr__(self):
         return f"In('{self._lhs}', {repr(self._rhs)})"
+
+
+@typechecked
+class UUID(Comparison):
+    def __init__(self, uuid_: str):
+        uuid.UUID(uuid_, version=4)
+        super().__init__('==', Field('uuid'), uuid_)

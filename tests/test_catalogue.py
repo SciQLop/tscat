@@ -25,25 +25,25 @@ class TestCatalogue(unittest.TestCase):
         save()
 
     @data(
-        ("Catalogue Name", "", {}),
-        ("Catalogue Name", "Patrick", {}),
-        ("Catalogue Name", "Patrick", {'field': 2}),
-        ("Catalogue Name", "Patrick", {'field_': 2}),
-        ("Catalogue Name", "Patrick", {'field_with_underscores': 2}),
-        ("Catalogue Name", "Patrick", {'field': 2.0}),
-        ("Catalogue Name", "Patrick", {'field': "2"}),
-        ("Catalogue Name", "Patrick", {'field': True}),
-        ("Catalogue Name", "Patrick", {'field': dt.datetime.now()}),
-        ("Catalogue Name", "Patrick", {'field': 2}),
-        ("Catalogue Name", "Patrick", {'field': 2, 'Field': 3}),
-        ("Catalogue Name", "Patrick",
-         {'field': 2, 'field2': 3.14, 'field3': "str", 'field4': True, 'field5': dt.datetime.now()}),
-        ("Catalogue Name", "Patrick", {'field': 2, 'Field': 3}, ['tag1', '#tag2']),
-        ("Catalogue Name", "Patrick", {}, ['', '\'as']),
+        ("Catalogue Name", "",        None, {}),
+        ("Catalogue Name", "Patrick", None, {}),
+        ("Catalogue Name", "Patrick", "3c0bee4b-d38f-46e7-94d5-8a762a61bbf2", {}),
+        ("Catalogue Name", "Patrick", None, {'field': 2}),
+        ("Catalogue Name", "Patrick", None, {'field_': 2}),
+        ("Catalogue Name", "Patrick", None, {'field_with_underscores': 2}),
+        ("Catalogue Name", "Patrick", None, {'field': 2.0}),
+        ("Catalogue Name", "Patrick", None, {'field': "2"}),
+        ("Catalogue Name", "Patrick", None, {'field': True}),
+        ("Catalogue Name", "Patrick", None, {'field': dt.datetime.now()}),
+        ("Catalogue Name", "Patrick", None, {'field': 2}),
+        ("Catalogue Name", "Patrick", None, {'field': 2, 'Field': 3}),
+        ("Catalogue Name", "Patrick", None, {'field': 2, 'field2': 3.14, 'field3': "str", 'field4': True, 'field5': dt.datetime.now()}),
+        ("Catalogue Name", "Patrick", "3c0bee4b-d38f-46e7-94d5-8a762a61bbf2", {'field': 2, 'Field': 3}, ['tag1', '#tag2']),
+        ("Catalogue Name", "Patrick", None, {}, ['', '\'as']),
     )
     @unpack
-    def test_constructor_various_combinations_all_ok(self, name, author, attrs, tags=[]):
-        e = Catalogue(name, author, tags, **attrs)
+    def test_constructor_various_combinations_all_ok(self, name, author, uuid, attrs, tags=[]):
+        e = Catalogue(name, author, uuid, tags, **attrs)
 
         self.assertEqual(e.name, name)
         self.assertEqual(e.author, author)
@@ -56,25 +56,25 @@ class TestCatalogue(unittest.TestCase):
         tags = re.escape(str(tags))
         self.assertRegex(f'{e}',
                          r'^Catalogue\(name=' + name + r', author=' + author +
-                         r', tags=' + tags +
+                         r', uuid=[0-9a-f-]{36}, tags=' + tags +
                          r', predicate=None\) attributes\(' + attr_repr + r'\)$')
 
     @data(
-        ("", "", {}),
-        ("", "", {}),
-        ("Catalogue Name", "", {"_invalid": 2}),
-        ("Catalogue Name", "", {"'invalid'": 2}),
-        ("Catalogue Name", "", {"invalid'": 2}),
-        ("Catalogue Name", "", {'"invalid"': 2}),
-        ("Catalogue Name", "", {"\nvalid": 2}),
-        ("Catalogue Name", "", {"nvalid\\\'": 2}),
-        ("Catalogue Name", "", {}, [123, "test"]),
-        ("Catalogue Name", "", {}, [dict(), "test"]),
+        ("", "", None, {}),
+        ("", "", 'invalid_uuid', {}),
+        ("Catalogue Name", "", None, {"_invalid": 2}),
+        ("Catalogue Name", "", None, {"'invalid'": 2}),
+        ("Catalogue Name", "", None, {"invalid'": 2}),
+        ("Catalogue Name", "", None, {'"invalid"': 2}),
+        ("Catalogue Name", "", None, {"\nvalid": 2}),
+        ("Catalogue Name", "", None, {"nvalid\\\'": 2}),
+        ("Catalogue Name", "", None, {}, [123, "test"]),
+        ("Catalogue Name", "", None, {}, [dict(), "test"]),
     )
     @unpack
-    def test_constructor_various_combinations_value_errorl(self, name, author, attrs, tags=[]):
+    def test_constructor_various_combinations_value_errorl(self, name, author, uuid, attrs, tags=[]):
         with self.assertRaises(ValueError):
-            assert Catalogue(name, author, tags, **attrs)
+            assert Catalogue(name, author, uuid, tags, **attrs)
 
     def test_unequal_catalogues(self):
         a, b = Catalogue("Catalogue Name1", "Patrick"), Catalogue("Catalogue Name2", "Patrick")

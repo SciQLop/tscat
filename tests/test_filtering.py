@@ -4,8 +4,8 @@ import unittest
 from ddt import ddt, data, unpack
 
 import tscat.orm_sqlalchemy
-from tscat import Event, get_events, Catalogue, get_catalogues
-from tscat.filtering import Predicate, Comparison, Field, Attribute, Has, Match, Not, All, Any, In
+from tscat import Event, get_events, Catalogue, get_catalogues, save
+from tscat.filtering import Predicate, Comparison, Field, Attribute, Has, Match, Not, All, Any, In, UUID
 
 import datetime as dt
 
@@ -327,3 +327,43 @@ class TestCatalogueFiltering(unittest.TestCase):
     def test_logical_combinations(self, pred, idx):
         catalogue_list = get_catalogues(All(pred))
         self.assertListEqual(catalogue_list, [catalogues[i] for i in idx])
+
+
+@ddt
+class TestUUIDFiltering(unittest.TestCase):
+    @classmethod
+    def setUp(self) -> None:
+        tscat._backend = tscat.orm_sqlalchemy.Backend(testing=True)
+
+        self.uuid1 = 'aa1b3598-babf-4317-9b54-4d7be254121e'
+        self.uuid2 = 'aa1b3598-babf-4317-9b54-4d7be254121f'
+
+        self.events = [
+            Event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick", self.uuid1),
+            Event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=3), "Alexis", self.uuid2),
+        ]
+
+        self.catalogues = [
+            Catalogue('Catalogue A', "Patrick", self.uuid1),
+            Catalogue('Catalogue B', "Alexis", self.uuid2),
+        ]
+
+        save()
+
+    def test_get_event_from_uuid(self):
+        e = get_events(Comparison("==", Field('uuid'), self.uuid1))
+        self.assertEqual(len(e), 1)
+        self.assertEqual(self.events[0], e[0])
+
+        e = get_events(UUID(self.uuid2))
+        self.assertEqual(len(e), 1)
+        self.assertEqual(self.events[1], e[0])
+
+    def test_get_catalogues_from_uuid(self):
+        c = get_catalogues(Comparison("==", Field('uuid'), self.uuid1))
+        self.assertEqual(len(c), 1)
+        self.assertEqual(self.catalogues[0], c[0])
+
+        c = get_catalogues(UUID(self.uuid2))
+        self.assertEqual(len(c), 1)
+        self.assertEqual(self.catalogues[1], c[0])

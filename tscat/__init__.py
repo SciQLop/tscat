@@ -22,7 +22,7 @@ _backend = None
 
 def backend():
     global _backend
-    if not _backend:
+    if not _backend:  # pragma: no cover
         _backend = orm_sqlalchemy.Backend()  # during tests this line should never be called - this it's uncovered
     return _backend
 
@@ -152,9 +152,10 @@ class Event(_BackendBasedEntity):
 
 @typechecked
 class Catalogue(_BackendBasedEntity):
-    _fixed_keys = ['name', 'author', 'tags', 'predicate']
+    _fixed_keys = ['name', 'author', 'uuid', 'tags', 'predicate']
 
     def __init__(self, name: str, author: str,
+                 uuid: str = None,
                  tags: Iterable[str] = [],
                  predicate: Predicate = None,
                  events: List[Event] = None,
@@ -166,6 +167,12 @@ class Catalogue(_BackendBasedEntity):
 
         self.name = name
         self.author = author
+
+        if not uuid:
+            self.uuid = str(uuid4())
+        else:
+            self.uuid = uuid
+
         self.tags = list(tags)
         self.predicate = predicate
 
@@ -176,6 +183,7 @@ class Catalogue(_BackendBasedEntity):
             self._backend_entity = backend().add_or_update_catalogue({
                 'name': self.name,
                 'author': self.author,
+                'uuid': self.uuid,
                 'tags': self.tags,
                 'predicate': self.predicate,
                 'attributes': kwargs,
@@ -198,7 +206,9 @@ class Catalogue(_BackendBasedEntity):
         return self.predicate is not None
 
     def __setattr__(self, key, value):
-        if key == 'name':
+        if key == 'uuid':
+            UUID(value, version=4)  # throws an exception if not valid
+        elif key == 'name':
             if not value:
                 raise ValueError('Catalogue name cannot be emtpy.')
         elif key == 'tags':
@@ -222,7 +232,7 @@ def get_catalogues(base: Union[Predicate, Event, None] = None) -> List[Catalogue
 
     catalogues = []
     for cat in backend().get_catalogues(base):
-        c = Catalogue(cat['name'], cat['author'], cat['tags'], cat['predicate'],
+        c = Catalogue(cat['name'], cat['author'], cat['uuid'], cat['tags'], cat['predicate'],
                       None, **cat['attributes'], _insert=False)
         c._backend_entity = cat['entity']
         catalogues += [c]

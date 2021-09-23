@@ -72,8 +72,8 @@ class TestEvent(unittest.TestCase):
         (dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "", None, {}, [], ["test", 1234]),
     )
     @unpack
-    def test_constructor_various_combinations_value_errorl(self, start, stop, author, uuid, attrs, tags=[],
-                                                           products=[]):
+    def test_constructor_various_combinations_value_error(self, start, stop, author, uuid, attrs, tags=[],
+                                                          products=[]):
         with self.assertRaises(ValueError):
             assert Event(start, stop, author, uuid, tags, products, **attrs)
 

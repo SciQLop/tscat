@@ -240,8 +240,22 @@ class TestAPIField(unittest.TestCase):
         (IndexError, lambda x: delattr(x, 'uuid')),
     )
     @unpack
-    def test_mandatory_attrs_exceptions(self, expected_exception, func):
+    def test_mandatory_attrs_exceptions_on_event(self, expected_exception, func):
         ev = Event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick")
+
+        with self.assertRaises(expected_exception):
+            func(ev)
+
+    @data(
+        (ValueError, lambda x: setattr(x, 'name', '')),
+        (ValueError, lambda x: setattr(x, 'uuid', 'invalid-uuid')),
+        (IndexError, lambda x: delattr(x, 'name')),
+        (IndexError, lambda x: delattr(x, 'author')),
+        (IndexError, lambda x: delattr(x, 'uuid')),
+    )
+    @unpack
+    def test_mandatory_attrs_exceptions_on_catalogue(self, expected_exception, func):
+        ev = Catalogue("Catalogue A", "Patrick")
 
         with self.assertRaises(expected_exception):
             func(ev)

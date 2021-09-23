@@ -283,6 +283,8 @@ class Catalogue(ProxiedDictMixin, Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
 
+    uuid = Column(String(36), index=True, nullable=False)
+
     name = Column(UnicodeText, nullable=False)
     author = Column(UnicodeText, nullable=False)
     predicate = Column(LargeBinary, nullable=True)
@@ -309,9 +311,10 @@ class Catalogue(ProxiedDictMixin, Base):
 
     _attribute_class = CatalogueAttributes
 
-    def __init__(self, name: str, author: str, tags: List[str], predicate: bytes):
+    def __init__(self, name: str, author: str, uuid: str, tags: List[str], predicate: bytes):
         self.name = name
         self.author = author
+        self.uuid = uuid
         self.tags = tags
         self.predicate = predicate
 
