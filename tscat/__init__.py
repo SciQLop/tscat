@@ -136,10 +136,10 @@ class Event(_BackendBasedEntity):
             UUID(value, version=4)  # throws an exception if not valid
         elif key == 'start' and hasattr(self, 'stop'):
             if value >= self.stop:
-                raise ValueError("start-datetime has to be younger than end-datetime")
+                raise ValueError("start date has to be before stop date")
         elif key == 'stop' and hasattr(self, 'start'):
             if value <= self.start:
-                raise ValueError("stop-datetime has to be younger than end-datetime")
+                raise ValueError("stop date has to be after start date")
         elif key in ['tags', 'products']:
             if any(type(v) != str for v in value):
                 raise ValueError("a tag has to be a string")
