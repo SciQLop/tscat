@@ -6,6 +6,9 @@ from sqlalchemy.orm.collections import attribute_mapped_collection
 from sqlalchemy.orm.interfaces import PropComparator
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy_utils import ScalarListType
+
+from typing import List
 
 import datetime as dt
 
@@ -116,6 +119,15 @@ class PolymorphicVerticalProperty(object):
         def regexp_match(self, pattern, flags=None):
             return literal_column('char_value').regexp_match(pattern, flags)
 
+        def contains(self, other, **kwargs):
+            fieldname = self._fieldname(type(other))
+
+            if type(other) == list:
+                pattern = r'(,|^)' + other[0] + r'(,|$)'
+                return literal_column(fieldname).regexp_match(pattern)
+            else:
+                return literal_column(fieldname).contains(other, **kwargs)
+
     def __repr__(self):
         return f"<{self.__class__.__name__} {self.key}={self.value}>"
 
@@ -166,6 +178,39 @@ class EventAttributes(PolymorphicVerticalProperty, Base):
     boolean_value = Column(Boolean, info={"type": (bool, "boolean")})
     datetime_value = Column(DateTime, info={"type": (dt.datetime, "datetime")}, nullable=True)
     float_value = Column(Float, info={"type": (float, "float")})
+    string_list_value = Column(ScalarListType(str), default=[], info={"type": (list, "string_list")})
+
+
+class Tag(Base):
+    __tablename__ = 'tags'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(UnicodeText, nullable=False, unique=True)
+
+    def __init__(self, name: str):
+        self.name = name
+
+
+tag_in_event_association_table = \
+    Table('tag_in_event', Base.metadata,
+          Column('tags_id', Integer, ForeignKey('tags.id')),
+          Column('events_id', Integer, ForeignKey('events.id')))
+
+
+class EventProduct(Base):
+    __tablename__ = 'event_products'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(UnicodeText, nullable=False, unique=True)
+
+    def __init__(self, name: str):
+        self.name = name
+
+
+product_in_event_association_table = \
+    Table('product_in_event', Base.metadata,
+          Column('event_products_id', Integer, ForeignKey('event_products.id')),
+          Column('events_id', Integer, ForeignKey('events.id')))
 
 
 class Event(ProxiedDictMixin, Base):
@@ -178,6 +223,9 @@ class Event(ProxiedDictMixin, Base):
     start = Column(DateTime, nullable=False)
     stop = Column(DateTime, nullable=False)
     author = Column(UnicodeText, nullable=False)
+
+    tags = relationship("Tag", backref="events", secondary=tag_in_event_association_table)
+    products = relationship("EventProduct", backref="events", secondary=product_in_event_association_table)
 
     trashed = Column(Boolean, default=False)
 
@@ -195,11 +243,13 @@ class Event(ProxiedDictMixin, Base):
 
     _attribute_class = EventAttributes
 
-    def __init__(self, start, stop, author, uuid):
+    def __init__(self, start, stop, author, uuid, tags, products):
         self.start = start
         self.stop = stop
         self.author = author
         self.uuid = uuid
+        self.tags = tags
+        self.products = products
 
     def __repr__(self):
         return f'Event({self.id}: {self.start}, {self.stop}, {self.author}), meta=' + self._proxied.__repr__()
@@ -219,6 +269,13 @@ class CatalogueAttributes(PolymorphicVerticalProperty, Base):
     boolean_value = Column(Boolean, info={"type": (bool, "boolean")})
     datetime_value = Column(DateTime, info={"type": (dt.datetime, "datetime")})
     float_value = Column(Float, info={"type": (float, "float")})
+    string_list_value = Column(ScalarListType(str), default=[], info={"type": (list, "string_list")})
+
+
+tag_in_cataloguet_association_table = \
+    Table('tag_in_catalogue', Base.metadata,
+          Column('tags_id', Integer, ForeignKey('tags.id')),
+          Column('catalogues_id', Integer, ForeignKey('catalogues.id')))
 
 
 class Catalogue(ProxiedDictMixin, Base):
@@ -229,6 +286,8 @@ class Catalogue(ProxiedDictMixin, Base):
     name = Column(UnicodeText, nullable=False)
     author = Column(UnicodeText, nullable=False)
     predicate = Column(LargeBinary, nullable=True)
+
+    tags = relationship("Tag", backref="catalogues", secondary=tag_in_cataloguet_association_table)
 
     trashed = Column(Boolean, default=False)
 
@@ -250,9 +309,10 @@ class Catalogue(ProxiedDictMixin, Base):
 
     _attribute_class = CatalogueAttributes
 
-    def __init__(self, name: str, author: str, predicate: bytes):
+    def __init__(self, name: str, author: str, tags: List[str], predicate: bytes):
         self.name = name
         self.author = author
+        self.tags = tags
         self.predicate = predicate
 
     def __repr__(self):

@@ -7,7 +7,7 @@ __version__ = '0.0.0'
 from .filtering import Predicate
 
 import re
-from typing import Dict, List, Union, Tuple
+from typing import Dict, List, Union, Tuple, Iterable
 from typeguard import typechecked
 from uuid import uuid4, UUID
 
@@ -92,11 +92,13 @@ class _BackendBasedEntity:
 
 @typechecked
 class Event(_BackendBasedEntity):
-    _fixed_keys = ['start', 'stop', 'author', 'uuid']
+    _fixed_keys = ['start', 'stop', 'author', 'uuid', 'tags', 'products']
 
     def __init__(self, start: dt.datetime, stop: dt.datetime,
                  author: str,
                  uuid: str = None,
+                 tags: Iterable[str] = [],
+                 products: Iterable[str] = [],
                  _insert: bool = True,
                  **kwargs):
         self._in_ctor = True
@@ -105,6 +107,8 @@ class Event(_BackendBasedEntity):
         self.start = start
         self.stop = stop
         self.author = author
+        self.tags = list(tags)
+        self.products = list(products)
 
         if not uuid:
             self.uuid = str(uuid4())
@@ -120,6 +124,8 @@ class Event(_BackendBasedEntity):
                 'stop': self.stop,
                 'author': self.author,
                 'uuid': self.uuid,
+                'tags': self.tags,
+                'products': self.products,
                 'attributes': kwargs,
             })
 
@@ -134,6 +140,9 @@ class Event(_BackendBasedEntity):
         elif key == 'stop' and hasattr(self, 'start'):
             if value <= self.start:
                 raise ValueError("stop-datetime has to be younger than end-datetime")
+        elif key in ['tags', 'products']:
+            if any(type(v) != str for v in value):
+                raise ValueError("a tag has to be a string")
 
         super(Event, self).__setattr__(key, value)
 
@@ -143,9 +152,10 @@ class Event(_BackendBasedEntity):
 
 @typechecked
 class Catalogue(_BackendBasedEntity):
-    _fixed_keys = ['name', 'author', 'predicate']
+    _fixed_keys = ['name', 'author', 'tags', 'predicate']
 
     def __init__(self, name: str, author: str,
+                 tags: Iterable[str] = [],
                  predicate: Predicate = None,
                  events: List[Event] = None,
                  _insert: bool = True,
@@ -156,6 +166,7 @@ class Catalogue(_BackendBasedEntity):
 
         self.name = name
         self.author = author
+        self.tags = list(tags)
         self.predicate = predicate
 
         _verify_attribute_names(kwargs)
@@ -165,6 +176,7 @@ class Catalogue(_BackendBasedEntity):
             self._backend_entity = backend().add_or_update_catalogue({
                 'name': self.name,
                 'author': self.author,
+                'tags': self.tags,
                 'predicate': self.predicate,
                 'attributes': kwargs,
             })
@@ -189,6 +201,9 @@ class Catalogue(_BackendBasedEntity):
         if key == 'name':
             if not value:
                 raise ValueError('Catalogue name cannot be emtpy.')
+        elif key == 'tags':
+            if any(type(v) != str for v in value):
+                raise ValueError("a tag has to be a string")
 
         super(Catalogue, self).__setattr__(key, value)
 
@@ -207,7 +222,7 @@ def get_catalogues(base: Union[Predicate, Event, None] = None) -> List[Catalogue
 
     catalogues = []
     for cat in backend().get_catalogues(base):
-        c = Catalogue(cat['name'], cat['author'], cat['predicate'],
+        c = Catalogue(cat['name'], cat['author'], cat['tags'], cat['predicate'],
                       None, **cat['attributes'], _insert=False)
         c._backend_entity = cat['entity']
         catalogues += [c]
@@ -226,7 +241,8 @@ def get_events(base: Union[Predicate, Catalogue, None] = None) -> List[Event]:
 
     events = []
     for ev in backend().get_events(base):
-        e = Event(ev['start'], ev['stop'], ev['author'], ev['uuid'], **ev['attributes'], _insert=False)
+        e = Event(ev['start'], ev['stop'], ev['author'], ev['uuid'], ev['tags'], ev['products'],
+                  **ev['attributes'], _insert=False)
         e._backend_entity = ev['entity']
         events.append(e)
     return events

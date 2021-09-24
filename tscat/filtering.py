@@ -91,3 +91,14 @@ class Any(Predicate):
 
     def __repr__(self):
         return "Any({})".format(', '.join(repr(p) for p in self._predicates))
+
+
+@typechecked
+class In(Predicate):
+
+    def __init__(self, lhs: str, rhs: Union[Field, Attribute]):
+        self._lhs = lhs
+        self._rhs = rhs
+
+    def __repr__(self):
+        return f"In('{self._lhs}', {repr(self._rhs)})"

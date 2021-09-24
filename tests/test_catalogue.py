@@ -8,6 +8,7 @@ from tscat import Event, Catalogue, get_events, save, discard, get_catalogues
 from tscat.filtering import Comparison, Field
 
 import datetime as dt
+import re
 
 
 @ddt
@@ -37,10 +38,12 @@ class TestCatalogue(unittest.TestCase):
         ("Catalogue Name", "Patrick", {'field': 2, 'Field': 3}),
         ("Catalogue Name", "Patrick",
          {'field': 2, 'field2': 3.14, 'field3': "str", 'field4': True, 'field5': dt.datetime.now()}),
+        ("Catalogue Name", "Patrick", {'field': 2, 'Field': 3}, ['tag1', '#tag2']),
+        ("Catalogue Name", "Patrick", {}, ['', '\'as']),
     )
     @unpack
-    def test_constructor_various_combinations_all_ok(self, name, author, attrs):
-        e = Catalogue(name, author, **attrs)
+    def test_constructor_various_combinations_all_ok(self, name, author, attrs, tags=[]):
+        e = Catalogue(name, author, tags, **attrs)
 
         self.assertEqual(e.name, name)
         self.assertEqual(e.author, author)
@@ -49,8 +52,11 @@ class TestCatalogue(unittest.TestCase):
             self.assertEqual(e.__getattribute__(k), v)
 
         attr_repr = ', '.join(f'{k}={v}' for k, v in attrs.items())
+
+        tags = re.escape(str(tags))
         self.assertRegex(f'{e}',
                          r'^Catalogue\(name=' + name + r', author=' + author +
+                         r', tags=' + tags +
                          r', predicate=None\) attributes\(' + attr_repr + r'\)$')
 
     @data(
@@ -62,11 +68,13 @@ class TestCatalogue(unittest.TestCase):
         ("Catalogue Name", "", {'"invalid"': 2}),
         ("Catalogue Name", "", {"\nvalid": 2}),
         ("Catalogue Name", "", {"nvalid\\\'": 2}),
+        ("Catalogue Name", "", {}, [123, "test"]),
+        ("Catalogue Name", "", {}, [dict(), "test"]),
     )
     @unpack
-    def test_constructor_various_combinations_value_errorl(self, name, author, attrs):
+    def test_constructor_various_combinations_value_errorl(self, name, author, attrs, tags=[]):
         with self.assertRaises(ValueError):
-            assert Catalogue(name, author, **attrs)
+            assert Catalogue(name, author, tags, **attrs)
 
     def test_unequal_catalogues(self):
         a, b = Catalogue("Catalogue Name1", "Patrick"), Catalogue("Catalogue Name2", "Patrick")
@@ -166,6 +174,7 @@ class TestCatalogue(unittest.TestCase):
 
         cat_list = get_catalogues(self.events[1])
         self.assertListEqual(cat_list, [a])
+
 
 @ddt
 class TestDynamicCatalogue(unittest.TestCase):

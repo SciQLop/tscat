@@ -1,6 +1,6 @@
 from . import orm
 
-from ..filtering import Predicate, Comparison, Field, Attribute, All, Any, Match, Has, Not
+from ..filtering import Predicate, Comparison, Field, Attribute, All, Any, Match, Has, Not, In
 
 import pickle
 import datetime as dt
@@ -53,6 +53,17 @@ class PredicateVisitor:
     def _visit_not(self, not__: Not):
         return not_(self.visit_predicate(not__._operand))
 
+    def _visit_in(self, in_: In):
+        if isinstance(in_._rhs, Field):
+            rhs = getattr(self._orm_class, in_._rhs.value)
+            return rhs.any(name=in_._lhs)  # name and product's field are called `name`
+
+        elif isinstance(in_._rhs, Attribute):
+            return self._orm_class.attributes.any(
+                and_(self._orm_class._attribute_class.key == in_._rhs.value,
+                     self._orm_class._attribute_class.value.contains([in_._lhs]))
+            )
+
     def _visit_has(self, has_: Has):
         return self._orm_class.attributes.any(
             and_(self._orm_class._attribute_class.key == has_._operand.value,
@@ -81,6 +92,8 @@ class PredicateVisitor:
             return self._visit_has(pred)
         elif isinstance(pred, Match):
             return self._visit_match(pred)
+        elif isinstance(pred, In):
+            return self._visit_in(pred)
 
 
 @typechecked
@@ -88,7 +101,7 @@ class Backend:
     def __init__(self, testing=False):
         if testing:
             url = 'sqlite://'  # memory database
-        else:
+        else:  # pragma: no cover
             db_file_path = user_data_dir('tscat')
             if not os.path.exists(db_file_path):
                 os.makedirs(db_file_path)
@@ -106,18 +119,29 @@ class Backend:
 
         self.session = Session(bind=self.engine, autoflush=True)
 
+    def _get_or_create(self, model, **kwargs):
+        instance = self.session.query(model).filter_by(**kwargs).one_or_none()
+        if instance:
+            return instance
+        else:
+            instance = model(**kwargs)
+            self.session.add(instance)
+            return instance
+
     def add_or_update_catalogue(self, catalogue: Dict) -> orm.Catalogue:
         entity = catalogue.get("_entity", None)
 
         serialized_predicate = pickle.dumps(catalogue['predicate'], protocol=3) \
             if catalogue['predicate'] is not None else None
 
+        tags = [self._get_or_create(orm.Tag, name=tag) for tag in catalogue['tags']]
         if entity:  # update
             entity.name = catalogue['name']
             entity.author = catalogue['author']
+            entity.tags = tags
             entity.predicate = serialized_predicate
         else:
-            entity = orm.Catalogue(catalogue['name'], catalogue['author'], serialized_predicate)
+            entity = orm.Catalogue(catalogue['name'], catalogue['author'], tags, serialized_predicate)
 
         # need to use []-operator because of proxy-class in sqlalchemy - update() on __dict__ does not work
         for k, v in catalogue['attributes'].items():
@@ -130,13 +154,17 @@ class Backend:
     def add_or_update_event(self, event: Dict) -> orm.Event:
         entity = event.get("_entity", None)
 
+        tags = [self._get_or_create(orm.Tag, name=tag) for tag in event['tags']]
+        products = [self._get_or_create(orm.EventProduct, name=product) for product in event['products']]
         if entity:  # update
             entity.start = event['start']
             entity.stop = event['stop']
             entity.author = event['author']
+            entity.tags = tags
+            entity.products = products
             entity.uuid = event['uuid']
         else:  # insert
-            entity = orm.Event(event['start'], event['stop'], event['author'], event['uuid'])
+            entity = orm.Event(event['start'], event['stop'], event['author'], event['uuid'], tags, products)
 
         # need to use []-operator because of proxy-class in sqlalchemy - update() on __dict__ does not work
         for k, v in event['attributes'].items():
@@ -184,6 +212,7 @@ class Backend:
             attr = {v.key: v.value for _, v in c.attributes.items()}
             catalogue = {"name": c.name,
                          "author": c.author,
+                         "tags": [tag.name for tag in c.tags],
                          "predicate": pickle.loads(c.predicate) if c.predicate else None,
                          "attributes": attr,
                          "entity": c}
@@ -200,6 +229,8 @@ class Backend:
                 "stop": e.stop,
                 "author": e.author,
                 "uuid": e.uuid,
+                "tags": [tag.name for tag in e.tags],
+                "products": [product.name for product in e.products],
                 "attributes": attr,
                 "entity": e}
             events.append(event)
