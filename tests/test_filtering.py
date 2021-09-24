@@ -5,7 +5,7 @@ from ddt import ddt, data, unpack
 
 import tscat.orm_sqlalchemy
 from tscat import Event, get_events, Catalogue, get_catalogues
-from tscat.filtering import Predicate, Comparison, Field, Attribute, Has, Match, Not, All, Any
+from tscat.filtering import Predicate, Comparison, Field, Attribute, Has, Match, Not, All, Any, In
 
 import datetime as dt
 
@@ -32,6 +32,7 @@ class TestFilterRepr(unittest.TestCase):
          "Any(Comparison('<=', Field('fieldName'), 'value'), Match(Field('fieldName'), '^mat[ch]{2}\\\\n$'))"),
         (All(Comparison('<=', Field('fieldName'), 'value'), Match(Field('fieldName'), r'^mat[ch]{2}\n$')),
          "All(Comparison('<=', Field('fieldName'), 'value'), Match(Field('fieldName'), '^mat[ch]{2}\\\\n$'))"),
+        (In("Value", Field("FieldName")), "In('Value', Field('FieldName'))")
     )
     @unpack
     def test_predicate_repr(self, pred: Predicate, expected: str) -> None:
@@ -148,6 +149,56 @@ class TestEventFiltering(unittest.TestCase):
 
 
 @ddt
+class TestStringListAttributes(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        tscat._backend = tscat.orm_sqlalchemy.Backend(testing=True)
+
+        global events
+        events = [
+            Event(dates[0], dates[2], "Patrick", tags=["tag1", "tag2"], sl=["name", "tagAA"]),
+            Event(dates[0], dates[2], "Someone", tags=["tag2", "tag3"], products=["prd1", "prd2"],
+                  sl=["tag1", "tagA", "name"]),
+            Event(dates[0], dates[2], "Person", sl=["tagc", "taga"]),
+        ]
+
+    def test_(self):
+        event_list = get_events(In('name', Attribute('sl')))
+        self.assertListEqual(event_list, events[0:2])
+
+        event_list = get_events(In('tagA', Attribute('sl')))
+        self.assertListEqual(event_list, [events[1]])
+
+        event_list = get_events(In('tagAA', Attribute('sl')))
+        self.assertListEqual(event_list, [events[0]])
+
+        event_list = get_events(In('tag1', Attribute('sl')))
+        self.assertListEqual(event_list, [events[1]])
+
+        event_list = get_events(Any(In('tag1', Attribute('sl')),
+                                    In('tagc', Attribute('sl'))))
+        self.assertListEqual(event_list, [events[1], events[2]])
+
+        event_list = get_events(Any(In('t', Attribute('sl'))))
+        self.assertListEqual(event_list, [])
+
+        # fields
+        event_list = get_events(In('t', Field("tags")))
+        self.assertListEqual(event_list, [])
+
+        event_list = get_events(In('tag2', Field("tags")))
+        self.assertListEqual(event_list, events[0:2])
+
+        event_list = get_events(In('prd1', Field("products")))
+        self.assertListEqual(event_list, [events[1]])
+
+        event_list = get_events(All(
+            In('prd1', Field("products")),
+            In('prd2', Field("products"))))
+        self.assertListEqual(event_list, [events[1]])
+
+
+@ddt
 class TestUsageExceptions(unittest.TestCase):
 
     @data(
@@ -165,7 +216,9 @@ class TestUsageExceptions(unittest.TestCase):
         lambda: Any(123),
 
         lambda: Has(123),
-        lambda: Has(Field('name'))
+        lambda: Has(Field('name')),
+        lambda: In(123, Field('fieldName')),
+        lambda: In("asd", 123),
     )
     def test_invalid_type_for_ctors_args(self, func):
         with self.assertRaises(TypeError):

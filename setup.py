@@ -16,6 +16,7 @@ requirements = [
     "typeguard>=2.12",
     "SQLAlchemy>=1.4",
     "appdirs>=1.4.4 ",
+    "SQLAlchemy_Utils>=0.37.8",
 ]
 
 test_requirements = [

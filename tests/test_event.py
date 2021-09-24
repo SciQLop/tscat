@@ -7,6 +7,7 @@ import tscat.orm_sqlalchemy
 from tscat import Event
 
 import datetime as dt
+import re
 
 
 @ddt
@@ -31,10 +32,14 @@ class TestEvent(unittest.TestCase):
         (dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick",
          '7b732d98-da74-11eb-89a0-f3d357f13cae',
          {'field': 2, 'field2': 3.14, 'field3': "str", 'field4': True, 'field5': dt.datetime.now(), }),
+        (dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "", None, {}, ["tag1", "tag2"],
+         ["productA", "productB"]),
+        (dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "", None, {}, ["tag1", "tag3"],
+         ["productA", "productC"]),
     )
     @unpack
-    def test_constructor_various_combinations_all_ok(self, start, stop, author, uuid, attrs):
-        e = Event(start, stop, author, uuid=uuid, **attrs)
+    def test_constructor_various_combinations_all_ok(self, start, stop, author, uuid, attrs, tags=[], products=[]):
+        e = Event(start, stop, author, uuid, tags, products, **attrs)
 
         self.assertEqual(e.start, start)
         self.assertEqual(e.stop, stop)
@@ -46,10 +51,12 @@ class TestEvent(unittest.TestCase):
             self.assertEqual(e.__getattribute__(k), v)
 
         attr_repr = ', '.join(f'{k}={v}' for k, v in attrs.items())
-        self.assertRegex(f'{e}',
-                         r'^Event\(start=.*, stop=.*, author=' +
-                         author +
-                         r', uuid=[0-9a-f-]{36}\) attributes\(' + attr_repr + r'\)$')
+        tags = re.escape(str(tags))
+        products = re.escape(str(products))
+        r = r'^Event\(start=.*, stop=.*, author=' + author + r', uuid=[0-9a-f-]{36}, tags=' + tags \
+            + r', products=' + products + r'\) attributes\(' + attr_repr + r'\)$'
+
+        self.assertRegex(f'{e}', r)
 
     @data(
         (dt.datetime.now() + dt.timedelta(days=1), dt.datetime.now(), "", None, {}),
@@ -60,11 +67,15 @@ class TestEvent(unittest.TestCase):
         (dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "", None, {'"invalid"': 2}),
         (dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "", None, {"i\nvalid": 2}),
         (dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "", None, {"invalid\\\'": 2}),
+        (dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "", None, {}, ["tags", 123]),
+        (dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "", None, {}, ["tags", dict()]),
+        (dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "", None, {}, [], ["test", 1234]),
     )
     @unpack
-    def test_constructor_various_combinations_value_errorl(self, start, stop, author, uuid, attrs):
+    def test_constructor_various_combinations_value_errorl(self, start, stop, author, uuid, attrs, tags=[],
+                                                           products=[]):
         with self.assertRaises(ValueError):
-            assert Event(start, stop, author, **attrs, uuid=uuid)
+            assert Event(start, stop, author, uuid, tags, products, **attrs)
 
     def test_unequal_events(self):
         t1, t2 = dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1)
