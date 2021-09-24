@@ -4,8 +4,12 @@ __author__ = """Patrick Boettcher"""
 __email__ = 'p@yai.se'
 __version__ = '0.0.0'
 
-from .filtering import Predicate
+import datetime
 
+from .filtering import Predicate, UUID as UUIDFilter
+
+
+import json
 import re
 from typing import Dict, List, Union, Tuple, Iterable
 from typeguard import typechecked
@@ -50,7 +54,14 @@ class _BackendBasedEntity:
         kv = ', '.join(k + '=' + str(v) for k, v in self.variable_attributes_as_dict().items())
         return f'{name}({fix}) attributes({kv})'
 
-    def variable_attributes_as_dict(self) -> Dict:
+    def dump(self) -> dict:
+        ret = self.variable_attributes_as_dict()
+        for k, v in self.__dict__.items():
+            if k in self._fixed_keys:
+                ret[k] = v
+        return ret
+
+    def variable_attributes_as_dict(self) -> dict:
         ret = {}
         for k, v in self.__dict__.items():
             if k in self._fixed_keys:
@@ -271,3 +282,70 @@ def discard() -> None:
 @typechecked
 def has_unsaved_changes() -> bool:
     return backend().has_unsaved_changes()
+
+
+@typechecked
+def export_json(catalogue: Catalogue) -> str:
+    events = get_events(catalogue)
+
+    events_uuids = [event.uuid for event in events]
+
+    catalogue_dump = catalogue.dump()
+    catalogue_dump.update({"events": events_uuids})
+    export_dict = {
+        'catalogues': [catalogue_dump],
+        'events': [event.dump() for event in events],
+    }
+    return json.dumps(export_dict, default=str)
+
+
+@typechecked
+def import_json(jsons: str) -> None:
+    import_dict = json.loads(jsons)
+
+    # check events and catalogues for existing entities
+    # if existing and identical - remove from import-dict
+    # if existing and not identical raise
+    # if not existing import
+
+    event_of_uuid = {}
+
+    for event in import_dict['events'][:]:
+        check_event = get_events(UUIDFilter(event['uuid']))
+        if len(check_event) != 0:
+            dumped_event = check_event[0].dump()
+            dumped_event['start'] = str(dumped_event['start'])
+            dumped_event['stop'] = str(dumped_event['stop'])
+            if dumped_event != event:
+                raise ValueError(f'Import: event with UUID {event["uuid"]} already exists in database, ' +
+                                 'but with different values.')
+            import_dict['events'].remove(event)
+
+            # keep Event for later use when importing a catalogue
+            event_of_uuid[event['uuid']] = check_event[0]
+
+    for catalogue in import_dict['catalogues'][:]:
+        check_catalogue = get_catalogues(UUIDFilter(catalogue['uuid']))
+        if len(check_catalogue) != 0:
+            events_uuids = [event.uuid for event in get_events(check_catalogue[0])]
+            catalogue_dump = check_catalogue[0].dump()
+            catalogue_dump.update({'events': events_uuids})
+
+            if catalogue_dump != catalogue:
+                raise ValueError(f'Import: catalogue with UUID {catalogue["uuid"]} already exists in database, ' +
+                                 'but with different values.')
+            import_dict['catalogues'].remove(catalogue)
+
+    # from here on import_dict only contains not yet existing events and catalogues
+
+    # import all new events
+    for event in import_dict['events']:
+        event['start'] = datetime.datetime.fromisoformat(event['start'])
+        event['stop'] = datetime.datetime.fromisoformat(event['stop'])
+        event_of_uuid[event['uuid']] = Event(**event)
+
+    for catalogue in import_dict['catalogues']:
+        catalogue_events = [event_of_uuid[uuid] for uuid in catalogue['events']]
+        del catalogue['events']
+
+        Catalogue(**catalogue, events=catalogue_events)

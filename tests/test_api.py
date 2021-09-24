@@ -4,9 +4,11 @@ import unittest
 from ddt import ddt, data, unpack
 
 import tscat.orm_sqlalchemy
-from tscat import Event, Catalogue, get_events, discard, save, has_unsaved_changes
+from tscat import Event, Catalogue, get_events, discard, save, has_unsaved_changes, \
+    export_json, import_json, get_catalogues
 
 import datetime as dt
+from random import choice
 
 
 @ddt
@@ -272,3 +274,80 @@ class TestAPIField(unittest.TestCase):
         self.assertTrue(has_unsaved_changes())
         save()
         self.assertFalse(has_unsaved_changes())
+
+
+def create_event():
+    return Event(
+        dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1),
+        choice(["Patrick", "Alexis", "Nicolas"]),
+        tag=['tag1', 'tag2'],
+        products=['product1', 'mms2'],
+        attr_str_list=["custom", "attr", "list"],
+        attr_str_list_empty = [])
+
+
+class TestImportExport(unittest.TestCase):
+    def setUp(self) -> None:
+        tscat._backend = tscat.orm_sqlalchemy.Backend(testing=True)  # create a memory-database for tests
+
+    def test_data_is_preserved_with_multiple_export_import_cycles_in_empty_database(self):
+        events = [create_event() for _ in range(10)]
+        catalogue = Catalogue("TestExportImportCatalogue", "Patrick", events=events)
+
+        for _ in range(3):
+            export_blob = export_json(catalogue)
+
+            discard()
+
+            self.assertEqual(len(get_events()), 0)
+            self.assertEqual(len(get_catalogues()), 0)
+
+            import_json(export_blob)
+
+            self.assertListEqual(events, get_events())
+            self.assertListEqual([catalogue], get_catalogues())
+
+    def test_data_is_preserved_when_importing_over_existing_events_and_catalogues_in_database(self):
+        events = [create_event() for _ in range(10)]
+        catalogue = Catalogue("TestExportImportCatalogue", "Patrick", events=events)
+
+        for _ in range(3):
+            export_blob = export_json(catalogue)
+
+            import_json(export_blob)
+
+            self.assertListEqual(events, get_events())
+            self.assertListEqual([catalogue], get_catalogues())
+
+    def test_exception_raised_upon_event_import_with_same_uuid_but_different_attrs(self):
+        events = [create_event() for _ in range(2)]
+        catalogue = Catalogue("TestExportImportCatalogue", "Patrick", events=events)
+
+        export_blob = export_json(catalogue)
+
+        events[0].author = "Someone Else"
+
+        with self.assertRaises(ValueError):
+            import_json(export_blob)
+
+    def test_exception_raised_upon_catalogue_import_with_same_uuid_but_different_attrs(self):
+        catalogue = Catalogue("TestExportImportCatalogue", "Patrick")
+
+        export_blob = export_json(catalogue)
+
+        catalogue.author = "Someone Else"
+
+        with self.assertRaises(ValueError):
+            import_json(export_blob)
+
+    def test_exception_raised_upon_catalogue_import_with_same_uuid_but_different_events(self):
+        events = [create_event() for _ in range(2)]
+        catalogue = Catalogue("TestExportImportCatalogue", "Patrick", events=events)
+
+        export_blob = export_json(catalogue)
+
+        event = create_event()
+        catalogue.add_events(event)
+
+        with self.assertRaises(ValueError):
+            import_json(export_blob)
