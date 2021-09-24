@@ -13,3 +13,4 @@ pytest-runner==5.1
 typeguard>=2.12
 SQLAlchemy>=1.4
 appdirs==1.4.4
+typing_extensions>=3.7

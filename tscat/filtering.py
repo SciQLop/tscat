@@ -1,5 +1,6 @@
 import datetime as dt
-from typing import Union, Literal
+from typing import Union
+from typing_extensions import Literal
 
 from typeguard import typechecked
 

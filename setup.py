@@ -12,9 +12,10 @@ with open('HISTORY.rst') as history_file:
 
 requirements = [
     "pytest>=4.6.5",
+    "typing_extensions>=3.7",
     "typeguard>=2.12",
     "SQLAlchemy>=1.4",
-    "appdirs==1.4.4 ",
+    "appdirs>=1.4.4 ",
 ]
 
 test_requirements = [
@@ -24,15 +25,17 @@ test_requirements = [
 setup(
     author="Patrick Boettcher",
     author_email='p@yai.se',
-    python_requires='>=3.8',
+    python_requires='>=3.7',
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
         'Natural Language :: English',
         'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
     ],
     description="A library which stores, loads and filters time-series-events and catalogues.",
     install_requires=requirements,
