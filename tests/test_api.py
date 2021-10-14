@@ -6,6 +6,7 @@ from ddt import ddt, data, unpack
 import tscat.orm_sqlalchemy
 from tscat import Event, Catalogue, get_events, discard, save, has_unsaved_changes, \
     export_json, import_json, get_catalogues
+from tscat.filtering import Comparison, Field
 
 import datetime as dt
 from random import choice
@@ -276,9 +277,24 @@ class TestAPIField(unittest.TestCase):
         self.assertFalse(has_unsaved_changes())
 
 
-def create_event():
+def create_event() -> Event:
     return Event(
         dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1),
+        choice(["Patrick", "Alexis", "Nicolas"]),
+        tag=['tag1', 'tag2'],
+        products=['product1', 'mms2'],
+        attr_str_list=["custom", "attr", "list"],
+        attr_str_list_empty=[])
+
+
+__cid = 0
+
+
+def create_catalogue() -> Catalogue:
+    global __cid
+    __cid += 1
+    return Catalogue(
+        f"TestCatalogue{__cid}",
         choice(["Patrick", "Alexis", "Nicolas"]),
         tag=['tag1', 'tag2'],
         products=['product1', 'mms2'],
@@ -351,3 +367,228 @@ class TestImportExport(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             import_json(export_blob)
+
+
+class TestTrash(unittest.TestCase):
+    def setUp(self) -> None:
+        tscat._backend = tscat.orm_sqlalchemy.Backend(testing=True)  # create a memory-database for tests
+
+    def create_events_for_test(self, count: int = 6):
+        events = [create_event() for _ in range(count)]
+        for i in range(count):
+            if i < 3:
+                events[i].author = 'Patrick'
+            else:
+                events[i].author = 'Alexis'
+        return events
+
+    def create_catalogues_for_test(self, count: int = 4):
+        catalogues = [create_catalogue() for _ in range(count)]
+        for i in range(count):
+            if i < 2:
+                catalogues[i].author = "Patrick"
+            else:
+                catalogues[i].author = "Alexis"
+        return catalogues
+
+    def test_event_is_removed_and_cannot_be_retrieved_via_get_events(self):
+        events = self.create_events_for_test()
+
+        events[0].remove()
+        events_after_remove = get_events()
+        self.assertListEqual(events_after_remove, events[1:])
+
+    def test_event_is_removed_and_can_only_be_retrieved_via_get_events_removed_items(self):
+        events = self.create_events_for_test()
+
+        events[0].remove()
+        events_after_remove = get_events(removed_items=True)
+        self.assertListEqual(events_after_remove, events[0:1])
+
+    def test_event_is_removed_and_cannot_be_retrieved_via_catalogue(self):
+        events = self.create_events_for_test()
+        catalogue = Catalogue("TestTrashEventCatalogue", "Patrick", events=events)
+
+        events[0].remove()
+        events_after_remove = get_events(catalogue)
+        self.assertListEqual(events_after_remove, events[1:])
+
+    def test_event_is_removed_and_cannot_be_retrieved_via_predicate(self):
+        events = self.create_events_for_test()
+
+        events[0].remove()
+        events_after_remove = get_events(Comparison('==', Field('author'), 'Patrick'))
+        self.assertListEqual(events_after_remove, events[1:3])
+
+    def test_event_is_removed_and_cannot_be_retrieved_via_dynamic_catalogue(self):
+        events = self.create_events_for_test()
+        catalogue = Catalogue("TestTrashEventCatalogue", "Patrick",
+                              predicate=Comparison('==', Field('author'), 'Patrick'),
+                              events=events[3:])
+
+        events[0].remove()
+        events_after_remove = get_events(catalogue)
+        self.assertListEqual(events_after_remove, events[1:])
+
+    def test_catalogue_is_removed_and_cannot_be_retrieved_via_get_catalogue(self):
+        catalogues = [create_catalogue() for _ in range(2)]
+        catalogues[0].remove()
+
+        catalogues_after_remove = get_catalogues()
+        self.assertListEqual(catalogues_after_remove, catalogues[1:])
+
+    def test_catalogue_is_removed_and_cannot_be_retrieved_via_get_catalogue_with_predicate(self):
+        catalogues = self.create_catalogues_for_test()
+        catalogues[0].remove()
+
+        catalogues_after_remove = get_catalogues(Comparison('==', Field('author'), 'Patrick'))
+        self.assertListEqual(catalogues_after_remove, catalogues[1:2])
+
+    def test_event_is_removed_and_restored_then_retrieved_via_get_events(self):
+        events = self.create_events_for_test()
+
+        events[0].remove()
+        events_after_remove = get_events()
+        self.assertListEqual(events_after_remove, events[1:])
+
+        events[0].restore()
+        events_after_restore = get_events()
+        self.assertListEqual(events_after_restore, events)
+
+    def test_event_is_removed_and_restored_then_retrieved_via_get_events_with_catalogue(self):
+        events = self.create_events_for_test()
+        catalogue = create_catalogue()
+        catalogue.add_events(events)
+
+        events[0].remove()
+        events_after_remove = get_events(catalogue)
+        self.assertListEqual(events_after_remove, events[1:])
+
+        events[0].restore()
+        events_after_restore = get_events()
+        self.assertListEqual(events_after_restore, events)
+
+    def test_catalogue_is_removed_and_restored_and_retrieved_via_get_catalogue(self):
+        catalogues = [create_catalogue() for _ in range(2)]
+        catalogues[0].remove()
+
+        catalogues_after_remove = get_catalogues()
+        self.assertListEqual(catalogues_after_remove, catalogues[1:])
+
+        catalogues[0].restore()
+        catalogues_after_restore = get_catalogues()
+        self.assertListEqual(catalogues_after_restore, catalogues)
+
+    def test_catalogue_is_removed_and_restored_and_retrieved_via_get_catalogue_with_predicate(self):
+        catalogues = self.create_catalogues_for_test()
+
+        catalogues[0].remove()
+
+        catalogues_after_remove = get_catalogues(Comparison('==', Field('author'), 'Patrick'))
+        self.assertListEqual(catalogues_after_remove, catalogues[1:2])
+
+        catalogues[0].restore()
+        catalogues_after_restore = get_catalogues(Comparison('==', Field('author'), 'Patrick'))
+        self.assertListEqual(catalogues_after_restore, catalogues[:2])
+
+    def test_get_removed_catalogues_before_and_after_remove_and_after_restore(self):
+        catalogues = self.create_catalogues_for_test()
+
+        removed_catalogues = get_catalogues(removed_items=True)
+        self.assertListEqual(removed_catalogues, [])
+
+        catalogues[0].remove()
+        self.assertTrue(catalogues[0].is_removed())
+
+        removed_catalogues = get_catalogues(removed_items=True)
+        self.assertListEqual(removed_catalogues, catalogues[0:1])
+
+        all_catalogues = get_catalogues()
+        self.assertListEqual(all_catalogues, catalogues[1:])
+
+        catalogues[0].restore()
+        removed_catalogues = get_catalogues(removed_items=True)
+        self.assertListEqual(removed_catalogues, [])
+
+        all_catalogues = get_catalogues()
+        self.assertListEqual(all_catalogues, catalogues)
+
+    def test_get_removed_events_from_a_catalogue(self):
+        cat, = self.create_catalogues_for_test(1)
+        ev = self.create_events_for_test(3)
+
+        cat.add_events(ev)
+
+        ev[0].remove()
+        ev[1].remove()
+
+        self.assertListEqual(get_events(cat), ev[2:3])
+        self.assertListEqual(get_events(cat, removed_items=True), ev[0:2])
+
+    def test_removing_catalogue_does_not_remove_events(self):
+        cat, = self.create_catalogues_for_test(1)
+        ev = self.create_events_for_test(3)
+
+        cat.add_events(ev)
+
+        cat.remove()
+
+        self.assertTrue(cat.is_removed())
+
+        self.assertListEqual(get_events(cat), ev)
+        self.assertListEqual(get_events(cat, removed_items=True), [])
+
+    def test_remove_catalogue_permanently(self):
+        cat, = self.create_catalogues_for_test(1)
+        self.assertListEqual(get_catalogues(), [cat])
+
+        cat.remove(permanently=True)
+
+        self.assertListEqual(get_catalogues(), [])
+        self.assertListEqual(get_catalogues(removed_items=True), [])
+
+    def test_remove_event_permanently(self):
+        ev, = self.create_events_for_test(1)
+        self.assertListEqual(get_events(), [ev])
+
+        ev.remove(permanently=True)
+
+        self.assertListEqual(get_events(), [])
+        self.assertListEqual(get_events(removed_items=True), [])
+
+    def test_raise_if_permanently_removed_catalogue_used_with_get_event(self):
+        cat, = self.create_catalogues_for_test(1)
+        ev = self.create_events_for_test(3)
+
+        cat.add_events(ev)
+
+        self.assertListEqual(get_events(cat), ev)
+
+        cat.remove(permanently=True)
+
+        with self.assertRaises(ValueError):
+            get_events(cat)
+        self.assertListEqual(get_events(), ev)
+
+    def test_raise_if_permanently_removed_event_is_added_to_catalogue(self):
+        cat, = self.create_catalogues_for_test(1)
+        ev, = self.create_events_for_test(1)
+
+        ev.remove(permanently=True)
+
+        with self.assertRaises(ValueError):
+            cat.add_events(ev)
+
+    def test_permanently_remove_event_from_catalogue_makes_it_disappear(self):
+        cat, = self.create_catalogues_for_test(1)
+        ev = self.create_events_for_test(2)
+
+        cat.add_events(ev)
+
+        self.assertListEqual(get_events(cat), ev)
+        self.assertListEqual(get_events(), ev)
+
+        ev[0].remove(permanently=True)
+
+        self.assertListEqual(get_events(cat), ev[1:])
+        self.assertListEqual(get_events(), ev[1:])
