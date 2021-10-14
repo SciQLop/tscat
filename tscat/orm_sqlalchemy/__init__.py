@@ -150,6 +150,7 @@ class Backend:
             entity[k] = v
 
         self.session.add(entity)
+        self.session.flush()
 
         return entity
 
@@ -173,6 +174,7 @@ class Backend:
             entity[k] = v
 
         self.session.add(entity)
+        self.session.flush()
 
         return entity
 
@@ -190,7 +192,8 @@ class Backend:
 
     def _create_query(self, base: Dict,
                       orm_class: Union[TypeVar(orm.Event), TypeVar(orm.Catalogue)],
-                      field: ['events', 'catalogues']) -> Query:
+                      field: ['events', 'catalogues'],
+                      removed: bool = False) -> Query:
         f = None
 
         if base.get('predicate', None) is not None:
@@ -203,6 +206,11 @@ class Backend:
             else:
                 f = entity_filter
 
+        if f is None:
+            f = getattr(orm_class, 'removed') == removed
+        else:
+            f = and_(getattr(orm_class, 'removed') == removed, f)
+
         q = self.session.query(orm_class)
         if f is not None:
             q = q.filter(f)
@@ -210,7 +218,7 @@ class Backend:
 
     def get_catalogues(self, base: Dict = {}) -> List[Dict]:
         catalogues = []
-        for c in self._create_query(base, orm.Catalogue, 'events'):
+        for c in self._create_query(base, orm.Catalogue, 'events', removed=base['removed']):
             attr = {v.key: v.value for _, v in c.attributes.items()}
             catalogue = {"name": c.name,
                          "author": c.author,
@@ -225,7 +233,7 @@ class Backend:
 
     def get_events(self, base: Dict = {}) -> List[Dict]:
         events = []
-        for e in self._create_query(base, orm.Event, 'catalogues'):
+        for e in self._create_query(base, orm.Event, 'catalogues', removed=base['removed']):
             attr = {v.key: v.value for _, v in e.attributes.items()}
             event = {
                 "start": e.start,
@@ -248,3 +256,17 @@ class Backend:
 
     def has_unsaved_changes(self) -> bool:
         return self.session.in_transaction()
+
+    def remove(self, entity: Union[orm.Catalogue, orm.Event], permanently: bool = False) -> None:
+        if permanently:
+            self.session.delete(entity)
+        else:
+            entity.removed = True
+
+    @staticmethod
+    def restore(entity: Union[orm.Catalogue, orm.Event]) -> None:
+        entity.removed = False
+
+    @staticmethod
+    def is_removed(entity: Union[orm.Catalogue, orm.Event]) -> bool:
+        return entity.removed

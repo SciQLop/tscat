@@ -69,6 +69,11 @@ class _BackendBasedEntity:
                 ret[k] = v
         return ret
 
+    def __getattr__(self, name):
+        if name == '_backend_entity' and name not in self.__dict__:
+            raise ValueError("Cannot do any database action on a deleted item - item has been invalidated")
+        return super(_BackendBasedEntity, self).__getattr__(name)
+
     def __setattr__(self, key, value):
         super(_BackendBasedEntity, self).__setattr__(key, value)
 
@@ -98,6 +103,17 @@ class _BackendBasedEntity:
             if self.__dict__[k] != o.__dict__[k]:
                 return False
         return True
+
+    def remove(self, permanently: bool = False) -> None:
+        backend().remove(self._backend_entity, permanently=permanently)
+        if permanently:
+            del self._backend_entity
+
+    def is_removed(self) -> bool:
+        return backend().is_removed(self._backend_entity)
+
+    def restore(self) -> None:
+        backend().restore(self._backend_entity)
 
 
 @typechecked
@@ -232,13 +248,15 @@ class Catalogue(_BackendBasedEntity):
 
 
 @typechecked
-def get_catalogues(base: Union[Predicate, Event, None] = None) -> List[Catalogue]:
+def get_catalogues(base: Union[Predicate, Event, None] = None, removed_items: bool = False) -> List[Catalogue]:
     if isinstance(base, Predicate):
         base = {'predicate': base}
     elif isinstance(base, Event):
         base = {'entity': base._backend_entity}
     else:
         base = {}
+
+    base.update({'removed': removed_items})
 
     catalogues = []
     for cat in backend().get_catalogues(base):
@@ -250,7 +268,7 @@ def get_catalogues(base: Union[Predicate, Event, None] = None) -> List[Catalogue
 
 
 @typechecked
-def get_events(base: Union[Predicate, Catalogue, None] = None) -> List[Event]:
+def get_events(base: Union[Predicate, Catalogue, None] = None, removed_items: bool = False) -> List[Event]:
     if isinstance(base, Predicate):
         base = {'predicate': base}
     elif isinstance(base, Catalogue):
@@ -258,6 +276,8 @@ def get_events(base: Union[Predicate, Catalogue, None] = None) -> List[Event]:
                 'predicate': base.predicate}
     else:
         base = {}
+
+    base.update({'removed': removed_items})
 
     events = []
     for ev in backend().get_events(base):

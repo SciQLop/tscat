@@ -227,7 +227,7 @@ class Event(ProxiedDictMixin, Base):
     tags = relationship("Tag", backref="events", secondary=tag_in_event_association_table)
     products = relationship("EventProduct", backref="events", secondary=product_in_event_association_table)
 
-    trashed = Column(Boolean, default=False)
+    removed = Column(Boolean, default=False)
 
     attributes = relationship(
         "EventAttributes",
@@ -252,7 +252,7 @@ class Event(ProxiedDictMixin, Base):
         self.products = products
 
     def __repr__(self):
-        return f'Event({self.id}: {self.start}, {self.stop}, {self.author}), meta=' + self._proxied.__repr__()
+        return f'Event({self.id}: {self.start}, {self.stop}, {self.author}), {self.removed}, meta=' + self._proxied.__repr__()
 
 
 class CatalogueAttributes(PolymorphicVerticalProperty, Base):
@@ -291,7 +291,7 @@ class Catalogue(ProxiedDictMixin, Base):
 
     tags = relationship("Tag", backref="catalogues", secondary=tag_in_cataloguet_association_table)
 
-    trashed = Column(Boolean, default=False)
+    removed = Column(Boolean, default=False)
 
     attributes = relationship(
         "CatalogueAttributes",
@@ -319,4 +319,4 @@ class Catalogue(ProxiedDictMixin, Base):
         self.predicate = predicate
 
     def __repr__(self):
-        return f'Catalogue({self.id}: {self.name}, {self.author}, {self.trashed}), attrs=' + self._proxied.__repr__()
+        return f'Catalogue({self.id}: {self.name}, {self.author}, {self.removed}), attrs=' + self._proxied.__repr__()
