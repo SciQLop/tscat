@@ -283,7 +283,7 @@ def create_event():
         tag=['tag1', 'tag2'],
         products=['product1', 'mms2'],
         attr_str_list=["custom", "attr", "list"],
-        attr_str_list_empty = [])
+        attr_str_list_empty=[])
 
 
 class TestImportExport(unittest.TestCase):

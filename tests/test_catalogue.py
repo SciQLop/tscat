@@ -25,7 +25,7 @@ class TestCatalogue(unittest.TestCase):
         save()
 
     @data(
-        ("Catalogue Name", "",        None, {}),
+        ("Catalogue Name", "", None, {}),
         ("Catalogue Name", "Patrick", None, {}),
         ("Catalogue Name", "Patrick", "3c0bee4b-d38f-46e7-94d5-8a762a61bbf2", {}),
         ("Catalogue Name", "Patrick", None, {'field': 2}),

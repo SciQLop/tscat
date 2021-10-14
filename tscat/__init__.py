@@ -8,7 +8,6 @@ import datetime
 
 from .filtering import Predicate, UUID as UUIDFilter
 
-
 import json
 import re
 from typing import Dict, List, Union, Tuple, Iterable
