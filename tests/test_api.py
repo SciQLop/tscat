@@ -217,6 +217,32 @@ class TestAPIAttributes(unittest.TestCase):
         ev, = get_events()
         self.assertEqual(ev.a_int, 12)
 
+    def test_create_and_update_string_list_field_and_attribute_of_event(self):
+        e = Event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1),
+                  "Patrick",
+                  products=["mms2"],
+                  str_list=["hello", "world"])
+        save()
+
+        self.assertListEqual(get_events(), [e])
+        e.products = ["mms1"]
+        e.str_list = ["goodbye", "earth"]
+
+        self.assertListEqual(get_events(), [e])
+
+    def test_create_and_update_string_list_field_and_attribute_of_catalogue(self):
+        c = Catalogue("Catalogue Name",
+                      "Patrick",
+                      tags=["mms2"],
+                      str_list=["hello", "world"])
+        save()
+
+        self.assertListEqual(get_catalogues(), [c])
+        c.tags = ["mms1"]
+        c.str_list = ["goodbye", "earth"]
+
+        self.assertListEqual(get_catalogues(), [c])
+
 
 @ddt
 class TestAPIField(unittest.TestCase):

@@ -80,11 +80,10 @@ class _BackendBasedEntity:
         super(_BackendBasedEntity, self).__setattr__(key, value)
 
         if key != '_in_ctor' and not self._in_ctor:
-            # TODO use backend().add
             if key in self._fixed_keys:
-                setattr(self._backend_entity, key, value)
+                backend().update_field(self._backend_entity, key, value)
             elif _valid_key.match(key):
-                self._backend_entity[key] = value
+                backend().update_attribute(self._backend_entity, key, value)
 
     def __delattr__(self, key):
         super(_BackendBasedEntity, self).__delattr__(key)
@@ -93,8 +92,7 @@ class _BackendBasedEntity:
         if key in self._fixed_keys:
             raise IndexError('Fixed keys cannot be deleted.')
         if _valid_key.match(key):
-            # backend().del
-            del self._backend_entity[key]
+            backend().delete_attribute(self._backend_entity, key)
 
     def __eq__(self, o):
         if sorted(filter(_valid_key.match, self.__dict__.keys())) != \
@@ -147,7 +145,7 @@ class Event(_BackendBasedEntity):
         self.__dict__.update(kwargs)
 
         if _insert:
-            self._backend_entity = backend().add_or_update_event({
+            self._backend_entity = backend().add_event({
                 'start': self.start,
                 'stop': self.stop,
                 'author': self.author,
@@ -208,7 +206,7 @@ class Catalogue(_BackendBasedEntity):
         self.__dict__.update(kwargs)
 
         if _insert:
-            self._backend_entity = backend().add_or_update_catalogue({
+            self._backend_entity = backend().add_catalogue({
                 'name': self.name,
                 'author': self.author,
                 'uuid': self.uuid,
