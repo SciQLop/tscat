@@ -43,7 +43,7 @@ class ProxiedDictMixin(object):
     def __delitem__(self, key):
         del self._proxied[key]
 
-    def __repr__(self):
+    def __repr__(self):  # pragma: no cover
         return json.dumps({k: v for k, v in self.proxied.items() if not k.startswith('_')}, indent=1)
 
 
@@ -128,7 +128,7 @@ class PolymorphicVerticalProperty(object):
             else:
                 return literal_column(fieldname).contains(other, **kwargs)
 
-    def __repr__(self):
+    def __repr__(self):  # pragma: no cover
         return f"<{self.__class__.__name__} {self.key}={self.value}>"
 
 
@@ -251,7 +251,7 @@ class Event(ProxiedDictMixin, Base):
         self.tags = tags
         self.products = products
 
-    def __repr__(self):
+    def __repr__(self):  # pragma: no cover
         return f'Event({self.id}: {self.start}, {self.stop}, {self.author}), {self.removed}, meta=' + self._proxied.__repr__()
 
 
@@ -318,5 +318,5 @@ class Catalogue(ProxiedDictMixin, Base):
         self.tags = tags
         self.predicate = predicate
 
-    def __repr__(self):
+    def __repr__(self):  # pragma: no cover
         return f'Catalogue({self.id}: {self.name}, {self.author}, {self.removed}), attrs=' + self._proxied.__repr__()

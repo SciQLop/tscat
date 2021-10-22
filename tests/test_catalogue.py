@@ -186,6 +186,8 @@ class TestDynamicCatalogue(unittest.TestCase):
             Event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=2), "Patrick"),
             Event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=3), "Patrick"),
             Event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=3), "Alexis"),
+            Event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=3), "Alexis"),
+            Event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=3), "Alexis"),
         ]
 
         self.catalogue = Catalogue("Catalogue A", "Patrick", events=self.events)
@@ -221,3 +223,13 @@ class TestDynamicCatalogue(unittest.TestCase):
         self.assertFalse(catalogues[0].is_dynamic())
         self.assertTrue(catalogues[1].is_dynamic())
         self.assertEqual(catalogues[1], dcat)
+
+    def test_predicate_field_is_updatable(self):
+        dc = Catalogue("Dynamic Catalogue", "Patrick",
+                       predicate=Comparison("==", Field("author"), "Patrick"))
+
+        self.assertListEqual(get_events(dc), self.events[:3])
+
+        dc.predicate = Comparison("==", Field("author"), "Alexis")
+
+        self.assertListEqual(get_events(dc), self.events[3:])

@@ -128,22 +128,24 @@ class Backend:
             self.session.add(instance)
             return instance
 
-    def add_or_update_catalogue(self, catalogue: Dict) -> orm.Catalogue:
-        entity = catalogue.get("_entity", None)
+    def _specialiced_serialization(self, key, value):
+        if key == "tags":
+            return [self._get_or_create(orm.Tag, name=tag) for tag in value]
+        elif key == "products":
+            return [self._get_or_create(orm.EventProduct, name=product) for product in value]
+        elif key == "predicate":
+            return pickle.dumps(value, protocol=3)
 
-        serialized_predicate = pickle.dumps(catalogue['predicate'], protocol=3) \
+    def add_catalogue(self, catalogue: Dict) -> orm.Catalogue:
+        serialized_predicate = self._specialiced_serialization('predicate', catalogue['predicate']) \
             if catalogue['predicate'] is not None else None
+        tags = self._specialiced_serialization('tags', catalogue['tags'])
 
-        tags = [self._get_or_create(orm.Tag, name=tag) for tag in catalogue['tags']]
-        if entity:  # update
-            entity.name = catalogue['name']
-            entity.author = catalogue['author']
-            entity.uuid = catalogue['uuid']
-            entity.tags = tags
-            entity.predicate = serialized_predicate
-        else:
-            entity = orm.Catalogue(catalogue['name'], catalogue['author'], catalogue['uuid'],
-                                   tags, serialized_predicate)
+        entity = orm.Catalogue(catalogue['name'],
+                               catalogue['author'],
+                               catalogue['uuid'],
+                               tags,
+                               serialized_predicate)
 
         # need to use []-operator because of proxy-class in sqlalchemy - update() on __dict__ does not work
         for k, v in catalogue['attributes'].items():
@@ -154,20 +156,16 @@ class Backend:
 
         return entity
 
-    def add_or_update_event(self, event: Dict) -> orm.Event:
-        entity = event.get("_entity", None)
+    def add_event(self, event: Dict) -> orm.Event:
+        tags = self._specialiced_serialization('tags', event['tags'])
+        products = self._specialiced_serialization('products', event['products'])
 
-        tags = [self._get_or_create(orm.Tag, name=tag) for tag in event['tags']]
-        products = [self._get_or_create(orm.EventProduct, name=product) for product in event['products']]
-        if entity:  # update
-            entity.start = event['start']
-            entity.stop = event['stop']
-            entity.author = event['author']
-            entity.tags = tags
-            entity.products = products
-            entity.uuid = event['uuid']
-        else:  # insert
-            entity = orm.Event(event['start'], event['stop'], event['author'], event['uuid'], tags, products)
+        entity = orm.Event(event['start'],
+                           event['stop'],
+                           event['author'],
+                           event['uuid'],
+                           tags,
+                           products)
 
         # need to use []-operator because of proxy-class in sqlalchemy - update() on __dict__ does not work
         for k, v in event['attributes'].items():
@@ -189,6 +187,19 @@ class Backend:
         for e in events:
             catalogue.events.remove(e)
         self.session.flush()
+
+    def update_field(self, entity: Union[orm.Event, orm.Catalogue], key: str, value) -> None:
+        if key in ['products', 'tags', 'predicate']:
+            value = self._specialiced_serialization(key, value)
+        setattr(entity, key, value)
+
+    @staticmethod
+    def update_attribute(entity: Union[orm.Event, orm.Catalogue], key: str, value) -> None:
+        entity[key] = value
+
+    @staticmethod
+    def delete_attribute(entity: Union[orm.Event, orm.Catalogue], key: str) -> None:
+        del entity[key]
 
     def _create_query(self, base: Dict,
                       orm_class: Union[TypeVar(orm.Event), TypeVar(orm.Catalogue)],
