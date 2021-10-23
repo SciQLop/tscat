@@ -5,7 +5,8 @@ from ddt import ddt, data, unpack
 
 import tscat.orm_sqlalchemy
 from tscat import Event, get_events, Catalogue, get_catalogues, save
-from tscat.filtering import Predicate, Comparison, Field, Attribute, Has, Match, Not, All, Any, In, UUID
+from tscat.filtering import Predicate, Comparison, Field, Attribute, Has, Match, Not, All, Any, In, UUID, \
+    InCatalogue, PredicateRecursionError, CatalogueFilterError
 
 import datetime as dt
 
@@ -17,10 +18,12 @@ dates = [
 events = []
 catalogues = []
 
+# initialize the backend to testing before anything is done on the datebase
+tscat._backend = tscat.orm_sqlalchemy.Backend(testing=True)
+
 
 @ddt
 class TestFilterRepr(unittest.TestCase):
-
     @data(
         (Field('fieldName'), "Field('fieldName')"),
         (Attribute('attrName'), "Attribute('attrName')"),
@@ -32,7 +35,9 @@ class TestFilterRepr(unittest.TestCase):
          "Any(Comparison('<=', Field('fieldName'), 'value'), Match(Field('fieldName'), '^mat[ch]{2}\\\\n$'))"),
         (All(Comparison('<=', Field('fieldName'), 'value'), Match(Field('fieldName'), r'^mat[ch]{2}\n$')),
          "All(Comparison('<=', Field('fieldName'), 'value'), Match(Field('fieldName'), '^mat[ch]{2}\\\\n$'))"),
-        (In("Value", Field("FieldName")), "In('Value', Field('FieldName'))")
+        (In("Value", Field("FieldName")), "In('Value', Field('FieldName'))"),
+        (InCatalogue(Catalogue('Name', 'Author', uuid='957d65ae-f278-48f5-aab1-8cf50efeadef')),
+         "InCatalogue(Catalogue(name=Name, author=Author, uuid=957d65ae-f278-48f5-aab1-8cf50efeadef, tags=[], predicate=None) attributes())")
     )
     @unpack
     def test_predicate_repr(self, pred: Predicate, expected: str) -> None:
@@ -200,7 +205,6 @@ class TestStringListAttributes(unittest.TestCase):
 
 @ddt
 class TestUsageExceptions(unittest.TestCase):
-
     @data(
         lambda: Field(123),
         lambda: Attribute(123),
@@ -219,6 +223,7 @@ class TestUsageExceptions(unittest.TestCase):
         lambda: Has(Field('name')),
         lambda: In(123, Field('fieldName')),
         lambda: In("asd", 123),
+        lambda: InCatalogue('a String')
     )
     def test_invalid_type_for_ctors_args(self, func):
         with self.assertRaises(TypeError):
@@ -367,3 +372,59 @@ class TestUUIDFiltering(unittest.TestCase):
         c = get_catalogues(UUID(self.uuid2))
         self.assertEqual(len(c), 1)
         self.assertEqual(self.catalogues[1], c[0])
+
+
+class TestEventFilteringOnCatalogues(unittest.TestCase):
+    def setUp(self) -> None:
+        tscat._backend = tscat.orm_sqlalchemy.Backend(testing=True)
+        self.c = Catalogue('Catalogue A', "Alexis")
+        self.d = Catalogue('Catalogue B', "Patrick")
+
+        self.events = [
+            Event(dates[0], dates[1], "Patrick"),
+            Event(dates[1], dates[2], "Alexis"),
+            Event(dates[0], dates[2], "Nicolas"),
+            Event(dates[0], dates[2], "Toto"),
+        ]
+        self.c.add_events([self.events[1], self.events[3]])
+        self.d.add_events([self.events[2], self.events[3]])
+
+
+    def test_get_events_which_are_in_no_catalogue(self):
+        self.assertListEqual(get_events(InCatalogue(None)), [self.events[0]])
+
+    def test_get_events_of_one_catalogue_using_in_catalogue_predicate(self):
+        self.assertListEqual(get_events(InCatalogue(self.c)), [self.events[1], self.events[3]])
+
+    def test_get_events_present_in_multiples_catalogues_using_in_catalogue_predicate(self):
+        self.assertListEqual(get_events(All(InCatalogue(self.c), InCatalogue(self.d))), [self.events[3]])
+
+    def test_get_events_present_in_any_of_the_catalogues_using_in_catalogue_predicate(self):
+        self.assertListEqual(get_events(Any(InCatalogue(self.c), InCatalogue(self.d))), self.events[1:])
+
+    def test_get_events_using_in_catalogue_with_a_dynamic_catalogue(self):
+        n = Catalogue('DynCatalogue', "Patrick", predicate=Comparison('==', Field("author"), 'Patrick'))
+        self.assertListEqual(get_events(n), self.events[0:1])
+
+    def test_get_events_using_in_catalogue_with_a_dynamic_catalogue_which_has_a_static_event(self):
+        n = Catalogue('DynCatalogue', "Patrick", predicate=Comparison('==', Field("author"), 'Patrick'))
+        n.add_events(self.events[1])
+        self.assertListEqual(get_events(n), self.events[0:2])
+
+    def test_raise_predicate_recursion_when_referencing_self(self):
+        a = Catalogue("TestCatalogue", "Patrick")
+        a.predicate = InCatalogue(a)
+        with self.assertRaises(PredicateRecursionError):
+            get_events(a)
+
+    def test_raise_predicate_recursion_on_some_more_deeper_recursion(self):
+        a = Catalogue("TestCatalogue", "Patrick")
+        b = Catalogue("TestCatalogue", "Patrick", predicate=InCatalogue(a))
+        a.predicate = InCatalogue(b)
+        with self.assertRaises(PredicateRecursionError):
+            get_events(a)
+
+    def test_raise_if_get_catalogue_is_used_with_in_catalogue(self):
+        with self.assertRaises(CatalogueFilterError):
+            get_catalogues(InCatalogue(self.c))
+

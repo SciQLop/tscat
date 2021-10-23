@@ -1,8 +1,8 @@
 import datetime as dt
 
-from typing import Union
+from typing import Union, Any as Any_
 from typing_extensions import Literal
-from typeguard import typechecked
+from typeguard import typechecked, typeguard_ignore
 import uuid
 
 
@@ -109,3 +109,28 @@ class UUID(Comparison):
     def __init__(self, uuid_: str):
         uuid.UUID(uuid_, version=4)
         super().__init__('==', Field('uuid'), uuid_)
+
+
+@typechecked
+class InCatalogue(Predicate):
+    def __init__(self, catalogue: Union[Any_, None] = None):
+        # poor man's type-check, "Catalouge" does not work as forward declaration with typeguard
+        if catalogue is not None and 'tscat.Catalogue' not in str(type(catalogue)):
+            raise TypeError('Expected None or Catalogue.')
+        self.catalogue = catalogue
+
+    def __repr__(self):
+        return f"InCatalogue({self.catalogue})"
+
+
+@typechecked
+class PredicateRecursionError(Exception):
+    def __init__(self, message: str, predicate: Predicate):
+        super().__init__(message)
+
+        self.predicate = predicate
+
+@typechecked
+class CatalogueFilterError(Exception):
+    def __init__(self, message: str):
+        super().__init__(message)
