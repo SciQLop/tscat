@@ -71,7 +71,9 @@ class _BackendBasedEntity:
 
     def __getattr__(self, name):
         if name == '_backend_entity' and name not in self.__dict__:
-            raise ValueError("Cannot do any database action on a deleted item - item has been invalidated")
+            raise ValueError("You are trying to do an operation on an invalided object, " +
+                             "this may be because your object has been deleted, please try creating or " +
+                             "getting a new one.")
         return super(_BackendBasedEntity, self).__getattr__(name)
 
     def __setattr__(self, key, value):
