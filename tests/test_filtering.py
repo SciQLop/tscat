@@ -4,6 +4,7 @@ import unittest
 from ddt import ddt, data, unpack
 
 import tscat.orm_sqlalchemy
+import tscat
 from tscat import Event, get_events, Catalogue, get_catalogues, save
 from tscat.filtering import Predicate, Comparison, Field, Attribute, Has, Match, Not, All, Any, In, UUID, \
     InCatalogue, PredicateRecursionError, CatalogueFilterError
@@ -417,7 +418,7 @@ class TestEventFilteringOnCatalogues(unittest.TestCase):
         with self.assertRaises(PredicateRecursionError):
             get_events(a)
 
-    def test_raise_predicate_recursion_on_some_more_deeper_recursion(self):
+    def test_raise_predicate_recursion_on_some_deeper_recursion(self):
         a = Catalogue("TestCatalogue", "Patrick")
         b = Catalogue("TestCatalogue", "Patrick", predicate=InCatalogue(a))
         a.predicate = InCatalogue(b)
