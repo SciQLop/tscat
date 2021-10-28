@@ -63,23 +63,22 @@ class PolymorphicVerticalProperty(object):
     @hybrid_property
     def value(self):
         fieldname, discriminator = self.type_map[self.type]
-        if fieldname is None:
-            return None
-        else:
-            return getattr(self, fieldname)
+        return getattr(self, fieldname)
 
     @value.setter
     def value(self, value):
-        py_type = type(value)
-        fieldname, discriminator = self.type_map[py_type]
-
-        self.type = discriminator
-        if fieldname is not None:
+        try:
+            py_type = type(value)
+            fieldname, discriminator = self.type_map[py_type]
+            self.type = discriminator
             setattr(self, fieldname, value)
+        except KeyError:
+            raise TypeError(f'Unsupported type for SQLAlchemy hybrid-property used {type(self.type)}')
 
-    @value.deleter
-    def value(self):
-        self._set_value(None)
+    # value deletion is done with del, not sure how this method can be called
+    # @value.deleter
+    # def value(self):
+    #     self._set_value(None)
 
     @value.comparator
     class value(PropComparator):
@@ -125,8 +124,6 @@ class PolymorphicVerticalProperty(object):
             if type(other) == list:
                 pattern = r'(,|^)' + other[0] + r'(,|$)'
                 return literal_column(fieldname).regexp_match(pattern)
-            else:
-                return literal_column(fieldname).contains(other, **kwargs)
 
     def __repr__(self):  # pragma: no cover
         return f"<{self.__class__.__name__} {self.key}={self.value}>"
