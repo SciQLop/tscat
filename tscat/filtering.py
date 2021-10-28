@@ -2,7 +2,7 @@ import datetime as dt
 
 from typing import Union, Any as Any_
 from typing_extensions import Literal
-from typeguard import typechecked, typeguard_ignore
+from typeguard import typechecked
 import uuid
 
 
