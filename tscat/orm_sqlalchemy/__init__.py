@@ -1,6 +1,7 @@
 from . import orm
 
-from ..filtering import Predicate, Comparison, Field, Attribute, All, Any, Match, Has, Not, In
+from ..filtering import Predicate, Comparison, Field, Attribute, All, Any, Match, Has, Not, In, InCatalogue, \
+    PredicateRecursionError, CatalogueFilterError
 
 import pickle
 import datetime as dt
@@ -19,6 +20,7 @@ from operator import __eq__, __ne__, __ge__, __gt__, __le__, __lt__
 @typechecked
 class PredicateVisitor:
     def __init__(self, orm_class: Union[TypeVar(orm.Event), TypeVar(orm.Catalogue)]):
+        self.visited_predicates = set()
         self._orm_class = orm_class
 
     def _visit_literal(self, operand: Union[str, int, bool, float, dt.datetime]):
@@ -64,6 +66,18 @@ class PredicateVisitor:
                      self._orm_class._attribute_class.value.contains([in_._lhs]))
             )
 
+    def _visit_in_catalogue(self, in_catalogue: InCatalogue):
+        if self._orm_class == orm.Catalogue:
+            raise CatalogueFilterError("Cannot filter catalogues with a in-catalogue-predicate.")
+
+        if in_catalogue.catalogue is None:
+            return ~getattr(self._orm_class, "catalogues").any()
+        elif in_catalogue.catalogue.predicate is not None:
+            return or_(getattr(self._orm_class, "catalogues").any(id=in_catalogue.catalogue._backend_entity.id),
+                       self.visit_predicate(in_catalogue.catalogue.predicate))
+        else:
+            return getattr(self._orm_class, "catalogues").any(id=in_catalogue.catalogue._backend_entity.id)
+
     def _visit_has(self, has_: Has):
         return self._orm_class.attributes.any(
             and_(self._orm_class._attribute_class.key == has_._operand.value,
@@ -80,6 +94,11 @@ class PredicateVisitor:
                      self._orm_class._attribute_class.value.regexp_match(match_._rhs)))
 
     def visit_predicate(self, pred: Predicate):
+        if id(pred) in self.visited_predicates:
+            raise PredicateRecursionError('Recursion detected in ', pred)
+
+        self.visited_predicates.add(id(pred))
+
         if isinstance(pred, Comparison):
             return self._visit_comparison(pred)
         elif isinstance(pred, All):
@@ -94,6 +113,8 @@ class PredicateVisitor:
             return self._visit_match(pred)
         elif isinstance(pred, In):
             return self._visit_in(pred)
+        elif isinstance(pred, InCatalogue):
+            return self._visit_in_catalogue(pred)
 
 
 @typechecked
@@ -210,7 +231,7 @@ class Backend:
         if base.get('predicate', None) is not None:
             f = PredicateVisitor(orm_class).visit_predicate(base['predicate'])
 
-        if base.get('entity') is not None:  # event
+        if base.get('entity') is not None:
             entity_filter = getattr(orm_class, field).any(id=base['entity'].id)
             if f is not None:
                 f = or_(f, entity_filter)

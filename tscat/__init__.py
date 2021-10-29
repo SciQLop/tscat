@@ -4,8 +4,6 @@ __author__ = """Patrick Boettcher"""
 __email__ = 'p@yai.se'
 __version__ = '0.0.0'
 
-import datetime
-
 from .filtering import Predicate, UUID as UUIDFilter
 
 import json
@@ -359,8 +357,8 @@ def import_json(jsons: str) -> None:
 
     # import all new events
     for event in import_dict['events']:
-        event['start'] = datetime.datetime.fromisoformat(event['start'])
-        event['stop'] = datetime.datetime.fromisoformat(event['stop'])
+        event['start'] = dt.datetime.fromisoformat(event['start'])
+        event['stop'] = dt.datetime.fromisoformat(event['stop'])
         event_of_uuid[event['uuid']] = Event(**event)
 
     for catalogue in import_dict['catalogues']:
