@@ -116,7 +116,8 @@ class InCatalogue(Predicate):
     @typeguard_ignore
     def __init__(self, catalogue: Union['Catalogue', None] = None):
         # poor man's type-check, "Catalogue" does not work as forward declaration with typeguard
-        if catalogue is not None and 'tscat.Catalogue' not in str(type(catalogue)):
+        if catalogue is not None and \
+                f"{catalogue.__class__.__module__}.{catalogue.__class__.__name__}" != 'tscat.Catalogue':
             raise TypeError('Expected None or Catalogue.')
         self.catalogue = catalogue
 
