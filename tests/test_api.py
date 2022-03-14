@@ -248,6 +248,23 @@ class TestAPIAttributes(unittest.TestCase):
 
         self.assertListEqual(get_catalogues(), [c])
 
+    def test_entities_fix_keys_and_values_can_be_retrieved(self):
+        c = Catalogue("Catalogue Name", "Patrick", other_attr="asd")
+
+        keys = list(sorted(c.fixed_attributes().keys()))
+        self.assertListEqual(sorted(['name', 'uuid', 'author', 'tags', 'predicate']), keys)
+
+        keys = list(sorted(c.variable_attributes().keys()))
+        self.assertListEqual(sorted(['other_attr']), keys)
+
+        e = Event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick", other_attr="asd",
+                  other_attr2=123)
+        keys = list(sorted(e.fixed_attributes().keys()))
+        self.assertListEqual(sorted(['author', 'products', 'start', 'stop', 'tags', 'uuid']), keys)
+
+        keys = list(sorted(e.variable_attributes().keys()))
+        self.assertListEqual(sorted(['other_attr', 'other_attr2']), keys)
+
 
 @ddt
 class TestAPIField(unittest.TestCase):

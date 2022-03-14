@@ -47,18 +47,18 @@ def _verify_attribute_names(kwargs: Dict) -> Dict:
 @typechecked
 class _BackendBasedEntity:
     def representation(self, name: str) -> str:
-        fix = ', '.join(k + '=' + str(self.__dict__[k]) for k in self._fixed_keys)
-        kv = ', '.join(k + '=' + str(v) for k, v in self.variable_attributes_as_dict().items())
+        fix = ', '.join(k + '=' + str(v) for k, v in self.fixed_attributes().items())
+        kv = ', '.join(k + '=' + str(v) for k, v in self.variable_attributes().items())
         return f'{name}({fix}) attributes({kv})'
 
     def dump(self) -> dict:
-        ret = self.variable_attributes_as_dict()
+        ret = self.variable_attributes()
         for k, v in self.__dict__.items():
             if k in self._fixed_keys:
                 ret[k] = v
         return ret
 
-    def variable_attributes_as_dict(self) -> dict:
+    def variable_attributes(self) -> dict:
         ret = {}
         for k, v in self.__dict__.items():
             if k in self._fixed_keys:
@@ -66,6 +66,9 @@ class _BackendBasedEntity:
             if _valid_key.match(k):
                 ret[k] = v
         return ret
+
+    def fixed_attributes(self) -> dict:
+        return {k: self.__dict__[k] for k in self._fixed_keys}
 
     def __getattr__(self, name):
         if name == '_backend_entity' and name not in self.__dict__:
