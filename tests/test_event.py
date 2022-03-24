@@ -36,6 +36,7 @@ class TestEvent(unittest.TestCase):
          ["productA", "productB"]),
         (dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "", None, {}, ["tag1", "tag3"],
          ["productA", "productC"]),
+        (dt.datetime(2000,1,1), dt.datetime(2000,1,1), "Patrick", None, {}, ["Zero_duration_event"]),
     )
     @unpack
     def test_constructor_various_combinations_all_ok(self, start, stop, author, uuid, attrs, tags=[], products=[]):
