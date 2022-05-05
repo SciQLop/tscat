@@ -383,6 +383,19 @@ class TestImportExport(unittest.TestCase):
             self.assertListEqual(events, get_events())
             self.assertListEqual([catalogue], get_catalogues())
 
+    def test_importing_a_catalogue_where_all_events_are_already_present(self):
+        events = [create_event() for _ in range(10)]
+        catalogue = Catalogue("TestExportImportCatalogue", "Patrick", events=events)
+
+        export_blob = export_json(catalogue)
+
+        catalogue.remove(permanently=True)
+
+        import_json(export_blob)
+
+        self.assertListEqual(events, get_events())
+        self.assertListEqual([catalogue], get_catalogues())
+
     def test_exception_raised_upon_event_import_with_same_uuid_but_different_attrs(self):
         events = [create_event() for _ in range(2)]
         catalogue = Catalogue("TestExportImportCatalogue", "Patrick", events=events)

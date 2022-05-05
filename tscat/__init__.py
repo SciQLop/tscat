@@ -320,15 +320,13 @@ def export_json(catalogue: Catalogue) -> str:
 
 
 @typechecked
-def import_json(jsons: str) -> None:
+def canonicalize_json_import(jsons: str) -> dict:
     import_dict = json.loads(jsons)
 
     # check events and catalogues for existing entities
     # if existing and identical - remove from import-dict
     # if existing and not identical raise
     # if not existing import
-
-    event_of_uuid = {}
 
     for event in import_dict['events'][:]:
         check_event = get_events(UUIDFilter(event['uuid']))
@@ -340,9 +338,6 @@ def import_json(jsons: str) -> None:
                 raise ValueError(f'Import: event with UUID {event["uuid"]} already exists in database, ' +
                                  'but with different values.')
             import_dict['events'].remove(event)
-
-            # keep Event for later use when importing a catalogue
-            event_of_uuid[event['uuid']] = check_event[0]
 
     for catalogue in import_dict['catalogues'][:]:
         check_catalogue = get_catalogues(UUIDFilter(catalogue['uuid']))
@@ -356,7 +351,12 @@ def import_json(jsons: str) -> None:
                                  'but with different values.')
             import_dict['catalogues'].remove(catalogue)
 
-    # from here on import_dict only contains not yet existing events and catalogues
+    return import_dict
+
+
+@typechecked
+def import_canonicalized_dict(import_dict: dict):
+    event_of_uuid = {}
 
     # import all new events
     for event in import_dict['events']:
@@ -365,7 +365,15 @@ def import_json(jsons: str) -> None:
         event_of_uuid[event['uuid']] = Event(**event)
 
     for catalogue in import_dict['catalogues']:
-        catalogue_events = [event_of_uuid[uuid] for uuid in catalogue['events']]
+        catalogue_events = [event_of_uuid[uuid] if uuid in event_of_uuid
+                            else get_events(UUIDFilter(uuid))[0]
+                            for uuid in catalogue['events']]
         del catalogue['events']
 
         Catalogue(**catalogue, events=catalogue_events)
+
+
+@typechecked
+def import_json(jsons: str) -> None:
+    import_dict = canonicalize_json_import(jsons)
+    import_canonicalized_dict(import_dict)
