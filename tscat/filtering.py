@@ -114,7 +114,7 @@ class UUID(Comparison):
 @typechecked
 class InCatalogue(Predicate):
     @typeguard_ignore
-    def __init__(self, catalogue: Union['Catalogue', None] = None): # noqa: F821
+    def __init__(self, catalogue: Union['Catalogue', None] = None):  # noqa: F821
         # poor man's type-check, "Catalogue" does not work as forward declaration with typeguard
         if catalogue is not None and \
                 f"{catalogue.__class__.__module__}.{catalogue.__class__.__name__}" != 'tscat.Catalogue':
