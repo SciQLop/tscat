@@ -224,7 +224,7 @@ class Backend:
 
     def _create_query(self, base: Dict,
                       orm_class: Union[TypeVar(orm.Event), TypeVar(orm.Catalogue)],
-                      field: ['events', 'catalogues'], # noqa: F821
+                      field: ['events', 'catalogues'],  # noqa: F821
                       removed: bool = False) -> Query:
         f = None
 
