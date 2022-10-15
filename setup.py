@@ -11,7 +11,6 @@ with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
 requirements = [
-    "pytest>=4.6.5",
     "typing_extensions>=3.7",
     "SQLAlchemy>=1.4",
     "appdirs>=1.4.4 ",
@@ -39,6 +38,18 @@ setup(
     ],
     description="A library which stores, loads and filters time-series-events and catalogues.",
     install_requires=requirements,
+    extras_require={
+        'dev': [
+            'appdirs-stubs',
+            'sqlalchemy-stubs',
+            'sqlalchemy[mypy]',
+            "pytest>=4.6.5",
+            'pytest',
+            'pytest-pep8',
+            'pytest-cov',
+            'mypy',
+        ]
+    },
     license="GNU General Public License v3",
     long_description=readme + '\n\n' + history,
     include_package_data=True,
