@@ -8,7 +8,8 @@ import datetime as dt
 import os
 from appdirs import user_data_dir
 
-from typing import Union, List, Dict, Type, Literal
+from typing import Union, List, Dict, Type
+from typing_extensions import Literal
 
 from sqlalchemy import create_engine, and_, or_, not_, event
 from sqlalchemy.orm import Session, Query
