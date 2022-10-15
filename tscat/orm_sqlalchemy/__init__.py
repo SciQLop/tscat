@@ -8,7 +8,7 @@ import datetime as dt
 import os
 from appdirs import user_data_dir
 
-from typing import Union, List, Dict, TypeVar
+from typing import Union, List, Dict, Type, Literal
 
 from sqlalchemy import create_engine, and_, or_, not_, event
 from sqlalchemy.orm import Session, Query
@@ -17,8 +17,8 @@ from operator import __eq__, __ne__, __ge__, __gt__, __le__, __lt__
 
 
 class PredicateVisitor:
-    def __init__(self, orm_class: Union[TypeVar(orm.Event), TypeVar(orm.Catalogue)]):
-        self.visited_predicates = set()
+    def __init__(self, orm_class: Union[Type[orm.Event], Type[orm.Catalogue]]):
+        self.visited_predicates: set[int] = set()
         self._orm_class = orm_class
 
     def _visit_literal(self, operand: Union[str, int, bool, float, dt.datetime]):
@@ -42,7 +42,7 @@ class PredicateVisitor:
         elif isinstance(comp._lhs, Attribute):
             return self._orm_class.attributes.any(
                 and_(self._orm_class._attribute_class.key == comp._lhs.value,
-                     op_map[comp._op](self._orm_class._attribute_class.value, rhs)))
+                     op_map[comp._op](self._orm_class._attribute_class.value, rhs)))  # type: ignore
 
     def _visit_all(self, all_: All):
         return and_(self.visit_predicate(pred) for pred in all_._predicates)
@@ -61,7 +61,7 @@ class PredicateVisitor:
         elif isinstance(in_._rhs, Attribute):
             return self._orm_class.attributes.any(
                 and_(self._orm_class._attribute_class.key == in_._rhs.value,
-                     self._orm_class._attribute_class.value.contains([in_._lhs]))
+                     self._orm_class._attribute_class.value.contains([in_._lhs]))  # type: ignore
             )
 
     def _visit_in_catalogue(self, in_catalogue: InCatalogue):
@@ -79,7 +79,7 @@ class PredicateVisitor:
     def _visit_has(self, has_: Has):
         return self._orm_class.attributes.any(
             and_(self._orm_class._attribute_class.key == has_._operand.value,
-                 self._orm_class._attribute_class.value is not None))
+                 self._orm_class._attribute_class.value is not None))  # type: ignore
 
     def _visit_match(self, match_: Match):
         if isinstance(match_._lhs, Field):
@@ -89,7 +89,7 @@ class PredicateVisitor:
         elif isinstance(match_._lhs, Attribute):
             return self._orm_class.attributes.any(
                 and_(self._orm_class._attribute_class.key == match_._lhs.value,
-                     self._orm_class._attribute_class.value.regexp_match(match_._rhs)))
+                     self._orm_class._attribute_class.value.regexp_match(match_._rhs)))  # type: ignore
 
     def visit_predicate(self, pred: Predicate):
         if id(pred) in self.visited_predicates:
@@ -220,8 +220,8 @@ class Backend:
         del entity[key]
 
     def _create_query(self, base: Dict,
-                      orm_class: Union[TypeVar(orm.Event), TypeVar(orm.Catalogue)],
-                      field: ['events', 'catalogues'],  # noqa: F821
+                      orm_class: Union[Type[orm.Event], Type[orm.Catalogue]],
+                      field: Union[Literal['events'], Literal['catalogues']],
                       removed: bool = False) -> Query:
         f = None
 

@@ -6,7 +6,7 @@ from sqlalchemy.orm.collections import attribute_mapped_collection
 from sqlalchemy.orm.interfaces import PropComparator
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy_utils import ScalarListType
+from sqlalchemy_utils import ScalarListType  # type: ignore
 
 from typing import List
 
@@ -65,7 +65,7 @@ class PolymorphicVerticalProperty(object):
         fieldname, discriminator = self.type_map[self.type]
         return getattr(self, fieldname)
 
-    @value.setter
+    @value.setter  # type: ignore
     def value(self, value):
         try:
             py_type = type(value)
@@ -81,7 +81,7 @@ class PolymorphicVerticalProperty(object):
     #     self._set_value(None)
 
     @value.comparator
-    class value(PropComparator):
+    class value(PropComparator):  # type: ignore
         def __init__(self, cls):
             self.cls = cls
 
@@ -166,7 +166,7 @@ class EventAttributes(PolymorphicVerticalProperty, Base):
 
     __tablename__ = "events_attributes"
 
-    event_id = Column(ForeignKey("events.id"), primary_key=True)
+    event_id = Column(Integer, ForeignKey("events.id"), primary_key=True)
     key = Column(Unicode(64), primary_key=True)
     type = Column(Unicode(16), nullable=False)
 
@@ -175,7 +175,10 @@ class EventAttributes(PolymorphicVerticalProperty, Base):
     boolean_value = Column(Boolean, info={"type": (bool, "boolean")})
     datetime_value = Column(DateTime, info={"type": (dt.datetime, "datetime")}, nullable=True)
     float_value = Column(Float, info={"type": (float, "float")})
-    string_list_value = Column(ScalarListType(str), default=[], info={"type": (list, "string_list")})
+    string_list_value: List[str] = Column(ScalarListType(str), default=[], info={"type": (list, "string_list")})
+
+    def __init__(self, key, value=None):
+        super().__init__(key, value)
 
 
 class Tag(Base):
@@ -221,15 +224,16 @@ class Event(ProxiedDictMixin, Base):
     stop = Column(DateTime, nullable=False)
     author = Column(UnicodeText, nullable=False)
 
-    tags = relationship("Tag", backref="events", secondary=tag_in_event_association_table)
-    products = relationship("EventProduct", backref="events", secondary=product_in_event_association_table)
+    tags: List[str] = relationship("Tag", backref="events", secondary=tag_in_event_association_table)
+    products: List[str] = relationship("EventProduct", backref="events", secondary=product_in_event_association_table)
 
-    removed = Column(Boolean, default=False)
+    removed: bool = Column(Boolean, default=False, nullable=False)
 
-    attributes = relationship(
+    attributes: relationship = relationship(
         "EventAttributes",
         collection_class=attribute_mapped_collection("key"),
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
+        uselist=True
     )
 
     _proxied = association_proxy(
@@ -257,7 +261,7 @@ class CatalogueAttributes(PolymorphicVerticalProperty, Base):
 
     __tablename__ = "catalogues_attributes"
 
-    event_id = Column(ForeignKey("catalogues.id"), primary_key=True)
+    event_id = Column(Integer, ForeignKey("catalogues.id"), primary_key=True)
     key = Column(Unicode(64), primary_key=True)
     type = Column(Unicode(16))
 
@@ -266,7 +270,10 @@ class CatalogueAttributes(PolymorphicVerticalProperty, Base):
     boolean_value = Column(Boolean, info={"type": (bool, "boolean")})
     datetime_value = Column(DateTime, info={"type": (dt.datetime, "datetime")})
     float_value = Column(Float, info={"type": (float, "float")})
-    string_list_value = Column(ScalarListType(str), default=[], info={"type": (list, "string_list")})
+    string_list_value = Column(ScalarListType(str), default=[], info={"type": (list, "string_list")})  # type: ignore
+
+    def __init__(self, key, value=None):
+        super().__init__(key, value)
 
 
 tag_in_cataloguet_association_table = \
@@ -286,19 +293,19 @@ class Catalogue(ProxiedDictMixin, Base):
     author = Column(UnicodeText, nullable=False)
     predicate = Column(LargeBinary, nullable=True)
 
-    tags = relationship("Tag", backref="catalogues", secondary=tag_in_cataloguet_association_table)
+    tags: List[str] = relationship("Tag", backref="catalogues", secondary=tag_in_cataloguet_association_table)
 
-    removed = Column(Boolean, default=False)
+    removed: bool = Column(Boolean, default=False, nullable=False)
 
-    attributes = relationship(
+    attributes: relationship = relationship(
         "CatalogueAttributes",
         collection_class=attribute_mapped_collection("key"),
         cascade="all, delete-orphan"
     )
 
-    events = relationship("Event",
-                          backref="catalogues",
-                          secondary=event_in_catalogue_association_table)
+    events: List[Event] = relationship("Event",
+                                       backref="catalogues",
+                                       secondary=event_in_catalogue_association_table)
 
     _proxied = association_proxy(
         "attributes",
