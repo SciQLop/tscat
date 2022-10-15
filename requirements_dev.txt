@@ -10,7 +10,6 @@ twine
 ddt
 pytest
 pytest-runner
-typeguard>=2.12
 SQLAlchemy>=1.4
 appdirs
 typing_extensions>=3.7

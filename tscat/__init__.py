@@ -9,7 +9,6 @@ from .filtering import Predicate, UUID as UUIDFilter
 import json
 import re
 from typing import Dict, List, Union, Tuple, Iterable
-from typeguard import typechecked
 from uuid import uuid4, UUID
 
 from . import orm_sqlalchemy
@@ -28,7 +27,6 @@ def backend():
     return _backend
 
 
-@typechecked
 def _listify(v) -> Union[List, Tuple]:
     if type(v) in [list, tuple]:
         return v
@@ -36,7 +34,6 @@ def _listify(v) -> Union[List, Tuple]:
         return [v]
 
 
-@typechecked
 def _verify_attribute_names(kwargs: Dict) -> Dict:
     for k in kwargs.keys():
         if not _valid_key.match(k):
@@ -44,7 +41,6 @@ def _verify_attribute_names(kwargs: Dict) -> Dict:
     return kwargs
 
 
-@typechecked
 class _BackendBasedEntity:
     def representation(self, name: str) -> str:
         fix = ', '.join(k + '=' + str(v) for k, v in self.fixed_attributes().items())
@@ -117,7 +113,6 @@ class _BackendBasedEntity:
         backend().restore(self._backend_entity)
 
 
-@typechecked
 class Event(_BackendBasedEntity):
     _fixed_keys = ['start', 'stop', 'author', 'uuid', 'tags', 'products']
 
@@ -177,7 +172,6 @@ class Event(_BackendBasedEntity):
         return self.representation('Event')
 
 
-@typechecked
 class Catalogue(_BackendBasedEntity):
     _fixed_keys = ['name', 'author', 'uuid', 'tags', 'predicate']
 
@@ -248,7 +242,6 @@ class Catalogue(_BackendBasedEntity):
         return self.representation('Catalogue')
 
 
-@typechecked
 def get_catalogues(base: Union[Predicate, Event, None] = None, removed_items: bool = False) -> List[Catalogue]:
     if isinstance(base, Predicate):
         base = {'predicate': base}
@@ -268,7 +261,6 @@ def get_catalogues(base: Union[Predicate, Event, None] = None, removed_items: bo
     return catalogues
 
 
-@typechecked
 def get_events(base: Union[Predicate, Catalogue, None] = None, removed_items: bool = False) -> List[Event]:
     if isinstance(base, Predicate):
         base = {'predicate': base}
@@ -289,22 +281,18 @@ def get_events(base: Union[Predicate, Catalogue, None] = None, removed_items: bo
     return events
 
 
-@typechecked
 def save() -> None:
     backend().commit()
 
 
-@typechecked
 def discard() -> None:
     backend().rollback()
 
 
-@typechecked
 def has_unsaved_changes() -> bool:
     return backend().has_unsaved_changes()
 
 
-@typechecked
 def export_json(catalogue: Catalogue) -> str:
     events = get_events(catalogue)
 
@@ -319,7 +307,6 @@ def export_json(catalogue: Catalogue) -> str:
     return json.dumps(export_dict, default=str)
 
 
-@typechecked
 def canonicalize_json_import(jsons: str) -> dict:
     import_dict = json.loads(jsons)
 
@@ -354,7 +341,6 @@ def canonicalize_json_import(jsons: str) -> dict:
     return import_dict
 
 
-@typechecked
 def import_canonicalized_dict(import_dict: dict):
     event_of_uuid = {}
 
@@ -373,7 +359,6 @@ def import_canonicalized_dict(import_dict: dict):
         Catalogue(**catalogue, events=catalogue_events)
 
 
-@typechecked
 def import_json(jsons: str) -> None:
     import_dict = canonicalize_json_import(jsons)
     import_canonicalized_dict(import_dict)
