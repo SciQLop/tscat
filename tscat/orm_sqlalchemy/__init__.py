@@ -9,7 +9,6 @@ import os
 from appdirs import user_data_dir
 
 from typing import Union, List, Dict, TypeVar
-from typeguard import typechecked
 
 from sqlalchemy import create_engine, and_, or_, not_, event
 from sqlalchemy.orm import Session, Query
@@ -17,7 +16,6 @@ from sqlalchemy.orm import Session, Query
 from operator import __eq__, __ne__, __ge__, __gt__, __le__, __lt__
 
 
-@typechecked
 class PredicateVisitor:
     def __init__(self, orm_class: Union[TypeVar(orm.Event), TypeVar(orm.Catalogue)]):
         self.visited_predicates = set()
@@ -117,7 +115,6 @@ class PredicateVisitor:
             return self._visit_in_catalogue(pred)
 
 
-@typechecked
 class Backend:
     def __init__(self, testing=False):
         if testing:

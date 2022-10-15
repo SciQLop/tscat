@@ -13,7 +13,6 @@ with open('HISTORY.rst') as history_file:
 requirements = [
     "pytest>=4.6.5",
     "typing_extensions>=3.7",
-    "typeguard>=2.12",
     "SQLAlchemy>=1.4",
     "appdirs>=1.4.4 ",
     "SQLAlchemy_Utils>=0.37.8",
