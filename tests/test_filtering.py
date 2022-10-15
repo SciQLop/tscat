@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
 import unittest
-from ddt import ddt, data, unpack
+from ddt import ddt, data, unpack  # type: ignore
+from typing import List
 
 import tscat.orm_sqlalchemy
 import tscat
@@ -205,33 +206,6 @@ class TestStringListAttributes(unittest.TestCase):
 
 
 @ddt
-class TestUsageExceptions(unittest.TestCase):
-    @data(
-        lambda: Field(123),
-        lambda: Attribute(123),
-
-        lambda: Comparison('!!', Field('fieldName'), 'value'),
-        lambda: Comparison('<=', 123, 'value'),
-
-        lambda: Match(123, r'^mat[ch]{2}\n$'),
-        lambda: Match(Field('fieldName'), 123),
-
-        lambda: Not(123),
-        lambda: All(123),
-        lambda: Any(123),
-
-        lambda: Has(123),
-        lambda: Has(Field('name')),
-        lambda: In(123, Field('fieldName')),
-        lambda: In("asd", 123),
-        lambda: InCatalogue('a String')
-    )
-    def test_invalid_type_for_ctors_args(self, func):
-        with self.assertRaises(TypeError):
-            func()
-
-
-@ddt
 class TestCatalogueFiltering(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -337,6 +311,11 @@ class TestCatalogueFiltering(unittest.TestCase):
 
 @ddt
 class TestUUIDFiltering(unittest.TestCase):
+    uuid1: str
+    uuid2: str
+    events: List[Event]
+    catalogues: List[Catalogue]
+
     @classmethod
     def setUp(self) -> None:
         tscat._backend = tscat.orm_sqlalchemy.Backend(testing=True)
@@ -390,7 +369,6 @@ class TestEventFilteringOnCatalogues(unittest.TestCase):
         self.c.add_events([self.events[1], self.events[3]])
         self.d.add_events([self.events[2], self.events[3]])
 
-
     def test_get_events_which_are_in_no_catalogue(self):
         self.assertListEqual(get_events(InCatalogue(None)), [self.events[0]])
 
@@ -428,4 +406,3 @@ class TestEventFilteringOnCatalogues(unittest.TestCase):
     def test_raise_if_get_catalogue_is_used_with_in_catalogue(self):
         with self.assertRaises(CatalogueFilterError):
             get_catalogues(InCatalogue(self.c))
-

@@ -243,17 +243,19 @@ class Catalogue(_BackendBasedEntity):
 
 
 def get_catalogues(base: Union[Predicate, Event, None] = None, removed_items: bool = False) -> List[Catalogue]:
-    if isinstance(base, Predicate):
-        base = {'predicate': base}
-    elif isinstance(base, Event):
-        base = {'entity': base._backend_entity}
-    else:
-        base = {}
+    base_dict: dict[str, Union[Predicate, Event, None, bool]]
 
-    base.update({'removed': removed_items})
+    if isinstance(base, Predicate):
+        base_dict = {'predicate': base}
+    elif isinstance(base, Event):
+        base_dict = {'entity': base._backend_entity}
+    else:
+        base_dict = {}
+
+    base_dict.update({'removed': removed_items})
 
     catalogues = []
-    for cat in backend().get_catalogues(base):
+    for cat in backend().get_catalogues(base_dict):
         c = Catalogue(cat['name'], cat['author'], cat['uuid'], cat['tags'], cat['predicate'],
                       None, **cat['attributes'], _insert=False)
         c._backend_entity = cat['entity']
@@ -262,18 +264,19 @@ def get_catalogues(base: Union[Predicate, Event, None] = None, removed_items: bo
 
 
 def get_events(base: Union[Predicate, Catalogue, None] = None, removed_items: bool = False) -> List[Event]:
+    base_dict: dict[str, Union[Predicate, Catalogue, None, bool]]
     if isinstance(base, Predicate):
-        base = {'predicate': base}
+        base_dict = {'predicate': base}
     elif isinstance(base, Catalogue):
-        base = {'entity': base._backend_entity,
-                'predicate': base.predicate}
+        base_dict = {'entity': base._backend_entity,
+                     'predicate': base.predicate}
     else:
-        base = {}
+        base_dict = {}
 
-    base.update({'removed': removed_items})
+    base_dict.update({'removed': removed_items})
 
     events = []
-    for ev in backend().get_events(base):
+    for ev in backend().get_events(base_dict):
         e = Event(ev['start'], ev['stop'], ev['author'], ev['uuid'], ev['tags'], ev['products'],
                   **ev['attributes'], _insert=False)
         e._backend_entity = ev['entity']

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import unittest
-from ddt import ddt, data, unpack
+from ddt import ddt, data, unpack  # type: ignore
 
 import tscat.orm_sqlalchemy
 from tscat import Event, Catalogue, get_events, save, discard, get_catalogues

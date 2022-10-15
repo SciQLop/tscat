@@ -15,3 +15,5 @@ appdirs
 typing_extensions>=3.7
 SQLAlchemy_Utils>=0.37.8
 
+appdirs-stubs
+sqlalchemy-stubs
