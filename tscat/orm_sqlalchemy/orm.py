@@ -1,7 +1,8 @@
 from sqlalchemy import Column, Integer, DateTime, ForeignKey, Unicode, UnicodeText, Boolean, Table, String, \
     LargeBinary, Float, Index
 from sqlalchemy import event, literal_column
-from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship
 from sqlalchemy.orm.collections import attribute_mapped_collection
 from sqlalchemy.orm.interfaces import PropComparator
 from sqlalchemy.ext.associationproxy import association_proxy
