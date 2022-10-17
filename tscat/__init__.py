@@ -243,7 +243,7 @@ class Catalogue(_BackendBasedEntity):
 
 
 def get_catalogues(base: Union[Predicate, Event, None] = None, removed_items: bool = False) -> List[Catalogue]:
-    base_dict: dict[str, Union[Predicate, Event, None, bool]]
+    base_dict: Dict[str, Union[Predicate, Event, None, bool]]
 
     if isinstance(base, Predicate):
         base_dict = {'predicate': base}
@@ -264,7 +264,7 @@ def get_catalogues(base: Union[Predicate, Event, None] = None, removed_items: bo
 
 
 def get_events(base: Union[Predicate, Catalogue, None] = None, removed_items: bool = False) -> List[Event]:
-    base_dict: dict[str, Union[Predicate, Catalogue, None, bool]]
+    base_dict: Dict[str, Union[Predicate, Catalogue, None, bool]]
     if isinstance(base, Predicate):
         base_dict = {'predicate': base}
     elif isinstance(base, Catalogue):
