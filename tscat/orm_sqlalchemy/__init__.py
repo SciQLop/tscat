@@ -170,9 +170,6 @@ class Backend:
         for k, v in catalogue['attributes'].items():
             entity[k] = v
 
-        self.session.add(entity)
-        self.session.flush()
-
         return entity
 
     def add_event(self, event: Dict) -> orm.Event:
@@ -190,22 +187,17 @@ class Backend:
         for k, v in event['attributes'].items():
             entity[k] = v
 
-        self.session.add(entity)
-        self.session.flush()
-
         return entity
 
     def add_events_to_catalogue(self, catalogue: orm.Catalogue, events: List[orm.Event]) -> None:
         for e in events:
             if e in catalogue.events:
                 raise ValueError('Event is already in catalogue.')
-            catalogue.events.append(e)
-        self.session.flush()  # need flush - autoflush seems not work for n-to-m-relations
+        catalogue.events.extend(events)
 
     def remove_events_from_catalogue(self, catalogue: orm.Catalogue, events: List[orm.Event]) -> None:
         for e in events:
             catalogue.events.remove(e)
-        self.session.flush()
 
     def update_field(self, entity: Union[orm.Event, orm.Catalogue], key: str, value) -> None:
         if key in ['products', 'tags', 'predicate']:
@@ -277,6 +269,10 @@ class Backend:
             events.append(event)
 
         return events
+
+    def add_and_flush(self, entity_list: List[Union[orm.Event, orm.Catalogue]]):
+        self.session.add_all(entity_list)
+        self.session.flush()
 
     def commit(self):
         self.session.commit()

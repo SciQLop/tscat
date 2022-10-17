@@ -5,7 +5,8 @@ from typing_extensions import Literal
 import uuid
 
 if TYPE_CHECKING:
-    from . import Catalogue
+    from . import _Catalogue
+
 
 class Field:
     def __init__(self, name: str):
@@ -102,7 +103,7 @@ class UUID(Comparison):
 
 
 class InCatalogue(Predicate):
-    def __init__(self, catalogue: Union['Catalogue', None] = None):
+    def __init__(self, catalogue: Union['_Catalogue', None] = None):
         self.catalogue = catalogue
 
     def __repr__(self):

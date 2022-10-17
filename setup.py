@@ -12,7 +12,7 @@ with open('HISTORY.rst') as history_file:
 
 requirements = [
     "typing_extensions>=3.7",
-    'sqlalchemy[mypy]',
+    'sqlalchemy[mypy]<2',
     "appdirs>=1.4.4 ",
     "SQLAlchemy_Utils>=0.37.8",
 ]

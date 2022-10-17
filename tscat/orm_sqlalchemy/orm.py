@@ -219,7 +219,7 @@ class Event(ProxiedDictMixin, Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
 
-    uuid = Column(String(36), index=True, nullable=False)
+    uuid = Column(String(36), index=True, nullable=False, unique=True)
 
     start = Column(DateTime, nullable=False)
     stop = Column(DateTime, nullable=False)
@@ -288,7 +288,7 @@ class Catalogue(ProxiedDictMixin, Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
 
-    uuid = Column(String(36), index=True, nullable=False)
+    uuid = Column(String(36), index=True, nullable=False, unique=True)
 
     name = Column(UnicodeText, nullable=False)
     author = Column(UnicodeText, nullable=False)
