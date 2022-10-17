@@ -12,7 +12,7 @@ with open('HISTORY.rst') as history_file:
 
 requirements = [
     "typing_extensions>=3.7",
-    "SQLAlchemy>=1.4",
+    'sqlalchemy[mypy]',
     "appdirs>=1.4.4 ",
     "SQLAlchemy_Utils>=0.37.8",
 ]
@@ -41,7 +41,6 @@ setup(
     extras_require={
         'dev': [
             'appdirs-stubs',
-            'sqlalchemy[mypy]',
             "pytest>=4.6.5",
             'pytest',
             'pytest-pep8',
