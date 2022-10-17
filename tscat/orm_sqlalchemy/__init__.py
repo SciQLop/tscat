@@ -8,7 +8,7 @@ import datetime as dt
 import os
 from appdirs import user_data_dir
 
-from typing import Union, List, Dict, Type
+from typing import Union, List, Dict, Type, Set
 from typing_extensions import Literal
 
 from sqlalchemy import create_engine, and_, or_, not_, event
@@ -19,7 +19,7 @@ from operator import __eq__, __ne__, __ge__, __gt__, __le__, __lt__
 
 class PredicateVisitor:
     def __init__(self, orm_class: Union[Type[orm.Event], Type[orm.Catalogue]]):
-        self.visited_predicates: set[int] = set()
+        self.visited_predicates: Set[int] = set()
         self._orm_class = orm_class
 
     def _visit_literal(self, operand: Union[str, int, bool, float, dt.datetime]):
