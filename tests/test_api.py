@@ -4,9 +4,10 @@ import unittest
 from ddt import ddt, data, unpack  # type: ignore
 
 import tscat.orm_sqlalchemy
-from tscat import Event, Catalogue, get_events, discard, save, has_unsaved_changes, \
-    export_json, import_json, get_catalogues
+from tscat import create_event, create_catalogue, add_events_to_catalogue, get_events, \
+    discard, save, has_unsaved_changes, export_json, import_json, get_catalogues
 from tscat.filtering import Comparison, Field
+import tscat
 
 import datetime as dt
 from random import choice
@@ -19,12 +20,12 @@ class TestAPIAttributes(unittest.TestCase):
 
     def test_unsupported_attribute_type_raises(self):
         with self.assertRaises(TypeError):
-            Event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick",
-                  unsupported_dict_attr={'Hello': 'World'})
+            create_event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick",
+                         unsupported_dict_attr={'Hello': 'World'})
 
     def test_event_basic_add_get_sequence(self):
-        e1 = Event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick")
-        e2 = Event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick")
+        e1 = create_event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick")
+        e2 = create_event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick")
 
         event_list = get_events()
         self.assertListEqual([e1, e2], event_list)
@@ -34,8 +35,8 @@ class TestAPIAttributes(unittest.TestCase):
         event_list = get_events()
         self.assertListEqual([], event_list)
 
-        e1 = Event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick")
-        e2 = Event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick")
+        e1 = create_event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick")
+        e2 = create_event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick")
 
         save()
 
@@ -43,7 +44,7 @@ class TestAPIAttributes(unittest.TestCase):
         self.assertListEqual([e1, e2], event_list)
 
     def test_event_multiple_changes_without_save(self):
-        ev = Event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick")
+        ev = create_event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick")
 
         ev_db, = get_events()
         self.assertEqual(ev, ev_db)
@@ -67,7 +68,7 @@ class TestAPIAttributes(unittest.TestCase):
         self.assertTrue(ev.attr)
 
     def test_event_add_attribute_discard(self):
-        ev = Event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick")
+        ev = create_event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick")
         save()
 
         ev_db, = get_events()
@@ -86,7 +87,7 @@ class TestAPIAttributes(unittest.TestCase):
         self.assertFalse(hasattr(ev_db, 'new_value'))
 
     def test_event_add_attribute_save(self):
-        ev = Event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick")
+        ev = create_event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick")
         save()
 
         ev_db, = get_events()
@@ -102,8 +103,8 @@ class TestAPIAttributes(unittest.TestCase):
         self.assertEqual(ev.new_attr, 'value')
 
     def test_event_modify_attribute_discard(self):
-        ev = Event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick",
-                   a_str="hello", a_int=10, a_bool=True)
+        ev = create_event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick",
+                          a_str="hello", a_int=10, a_bool=True)
         save()
 
         ev.a_str = 'world'
@@ -124,8 +125,8 @@ class TestAPIAttributes(unittest.TestCase):
         self.assertEqual(ev_db.a_int, 10)
 
     def test_event_modify_attribute_save(self):
-        ev = Event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick",
-                   a_str="hello", a_int=10, a_bool=True)
+        ev = create_event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick",
+                          a_str="hello", a_int=10, a_bool=True)
         save()
 
         ev.a_str = 'world'
@@ -140,8 +141,8 @@ class TestAPIAttributes(unittest.TestCase):
         self.assertEqual(ev_db.a_int, 11)
 
     def test_event_delete_attribute_save(self):
-        ev = Event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick",
-                   a_str="hello", a_int=10, a_bool=True)
+        ev = create_event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick",
+                          a_str="hello", a_int=10, a_bool=True)
         save()
 
         del ev.a_str
@@ -159,8 +160,8 @@ class TestAPIAttributes(unittest.TestCase):
         self.assertEqual(ev_db.a_int, 10)
 
     def test_event_delete_attribute_discard(self):
-        ev = Event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick",
-                   a_str="hello", a_int=10, a_bool=True)
+        ev = create_event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick",
+                          a_str="hello", a_int=10, a_bool=True)
         save()
 
         del ev.a_str
@@ -178,8 +179,8 @@ class TestAPIAttributes(unittest.TestCase):
         self.assertEqual(ev_db.a_int, 10)
 
     def test_event_mixed_actions_on_attribute(self):
-        Event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick",
-              a_str="hello", a_int=10, a_bool=True)
+        create_event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick",
+                     a_str="hello", a_int=10, a_bool=True)
         save()
 
         ev, = get_events()
@@ -223,10 +224,10 @@ class TestAPIAttributes(unittest.TestCase):
         self.assertEqual(ev.a_int, 12)
 
     def test_create_and_update_string_list_field_and_attribute_of_event(self):
-        e = Event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1),
-                  "Patrick",
-                  products=["mms2"],
-                  str_list=["hello", "world"])
+        e = create_event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1),
+                         "Patrick",
+                         products=["mms2"],
+                         str_list=["hello", "world"])
         save()
 
         self.assertListEqual(get_events(), [e])
@@ -236,10 +237,10 @@ class TestAPIAttributes(unittest.TestCase):
         self.assertListEqual(get_events(), [e])
 
     def test_create_and_update_string_list_field_and_attribute_of_catalogue(self):
-        c = Catalogue("Catalogue Name",
-                      "Patrick",
-                      tags=["mms2"],
-                      str_list=["hello", "world"])
+        c = create_catalogue("Catalogue Name",
+                             "Patrick",
+                             tags=["mms2"],
+                             str_list=["hello", "world"])
         save()
 
         self.assertListEqual(get_catalogues(), [c])
@@ -249,7 +250,7 @@ class TestAPIAttributes(unittest.TestCase):
         self.assertListEqual(get_catalogues(), [c])
 
     def test_entities_fix_keys_and_values_can_be_retrieved(self):
-        c = Catalogue("Catalogue Name", "Patrick", other_attr="asd")
+        c = create_catalogue("Catalogue Name", "Patrick", other_attr="asd")
 
         keys = list(sorted(c.fixed_attributes().keys()))
         self.assertListEqual(sorted(['name', 'uuid', 'author', 'tags', 'predicate']), keys)
@@ -257,8 +258,8 @@ class TestAPIAttributes(unittest.TestCase):
         keys = list(sorted(c.variable_attributes().keys()))
         self.assertListEqual(sorted(['other_attr']), keys)
 
-        e = Event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick", other_attr="asd",
-                  other_attr2=123)
+        e = create_event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick", other_attr="asd",
+                         other_attr2=123)
         keys = list(sorted(e.fixed_attributes().keys()))
         self.assertListEqual(sorted(['author', 'products', 'start', 'stop', 'tags', 'uuid']), keys)
 
@@ -272,8 +273,8 @@ class TestAPIField(unittest.TestCase):
         tscat._backend = tscat.orm_sqlalchemy.Backend(testing=True)  # create a memory-database for tests
 
     def test_basic(self):
-        ev = Event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick",
-                   a_str="hello", a_int=10, a_bool=True)
+        ev = create_event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick",
+                          a_str="hello", a_int=10, a_bool=True)
 
         ev.stop = dt.datetime.now() + dt.timedelta(days=2)
         ev.start = dt.datetime.now() + dt.timedelta(days=1)
@@ -292,7 +293,7 @@ class TestAPIField(unittest.TestCase):
     )
     @unpack
     def test_mandatory_attrs_exceptions_on_event(self, expected_exception, func):
-        ev = Event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick")
+        ev = create_event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick")
 
         with self.assertRaises(expected_exception):
             func(ev)
@@ -306,27 +307,27 @@ class TestAPIField(unittest.TestCase):
     )
     @unpack
     def test_mandatory_attrs_exceptions_on_catalogue(self, expected_exception, func):
-        ev = Catalogue("Catalogue A", "Patrick")
+        ev = create_catalogue("Catalogue A", "Patrick")
 
         with self.assertRaises(expected_exception):
             func(ev)
 
     def test_unsaved_changes(self):
-        Event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick")
+        create_event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick")
 
         self.assertTrue(has_unsaved_changes())
         discard()
         self.assertFalse(has_unsaved_changes())
 
-        Event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick")
+        create_event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick")
 
         self.assertTrue(has_unsaved_changes())
         save()
         self.assertFalse(has_unsaved_changes())
 
 
-def create_event() -> Event:
-    return Event(
+def generate_event() -> tscat._Event:
+    return create_event(
         dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1),
         choice(["Patrick", "Alexis", "Nicolas"]),
         tag=['tag1', 'tag2'],
@@ -338,10 +339,10 @@ def create_event() -> Event:
 __cid = 0
 
 
-def create_catalogue() -> Catalogue:
+def generate_catalogue() -> tscat._Catalogue:
     global __cid
     __cid += 1
-    return Catalogue(
+    return create_catalogue(
         f"TestCatalogue{__cid}",
         choice(["Patrick", "Alexis", "Nicolas"]),
         tag=['tag1', 'tag2'],
@@ -355,8 +356,8 @@ class TestImportExport(unittest.TestCase):
         tscat._backend = tscat.orm_sqlalchemy.Backend(testing=True)  # create a memory-database for tests
 
     def test_data_is_preserved_with_multiple_export_import_cycles_in_empty_database(self):
-        events = [create_event() for _ in range(10)]
-        catalogue = Catalogue("TestExportImportCatalogue", "Patrick", events=events)
+        events = [generate_event() for _ in range(10)]
+        catalogue = create_catalogue("TestExportImportCatalogue", "Patrick", events=events)
 
         for _ in range(3):
             export_blob = export_json(catalogue)
@@ -372,8 +373,8 @@ class TestImportExport(unittest.TestCase):
             self.assertListEqual([catalogue], get_catalogues())
 
     def test_data_is_preserved_when_importing_over_existing_events_and_catalogues_in_database(self):
-        events = [create_event() for _ in range(10)]
-        catalogue = Catalogue("TestExportImportCatalogue", "Patrick", events=events)
+        events = [generate_event() for _ in range(10)]
+        catalogue = create_catalogue("TestExportImportCatalogue", "Patrick", events=events)
 
         for _ in range(3):
             export_blob = export_json(catalogue)
@@ -384,8 +385,8 @@ class TestImportExport(unittest.TestCase):
             self.assertListEqual([catalogue], get_catalogues())
 
     def test_importing_a_catalogue_where_all_events_are_already_present(self):
-        events = [create_event() for _ in range(10)]
-        catalogue = Catalogue("TestExportImportCatalogue", "Patrick", events=events)
+        events = [generate_event() for _ in range(10)]
+        catalogue = create_catalogue("TestExportImportCatalogue", "Patrick", events=events)
 
         export_blob = export_json(catalogue)
 
@@ -397,8 +398,8 @@ class TestImportExport(unittest.TestCase):
         self.assertListEqual([catalogue], get_catalogues())
 
     def test_exception_raised_upon_event_import_with_same_uuid_but_different_attrs(self):
-        events = [create_event() for _ in range(2)]
-        catalogue = Catalogue("TestExportImportCatalogue", "Patrick", events=events)
+        events = [generate_event() for _ in range(2)]
+        catalogue = create_catalogue("TestExportImportCatalogue", "Patrick", events=events)
 
         export_blob = export_json(catalogue)
 
@@ -408,7 +409,7 @@ class TestImportExport(unittest.TestCase):
             import_json(export_blob)
 
     def test_exception_raised_upon_catalogue_import_with_same_uuid_but_different_attrs(self):
-        catalogue = Catalogue("TestExportImportCatalogue", "Patrick")
+        catalogue = create_catalogue("TestExportImportCatalogue", "Patrick")
 
         export_blob = export_json(catalogue)
 
@@ -418,13 +419,14 @@ class TestImportExport(unittest.TestCase):
             import_json(export_blob)
 
     def test_exception_raised_upon_catalogue_import_with_same_uuid_but_different_events(self):
-        events = [create_event() for _ in range(2)]
-        catalogue = Catalogue("TestExportImportCatalogue", "Patrick", events=events)
+        events = [generate_event() for _ in range(2)]
+        catalogue = create_catalogue("TestExportImportCatalogue", "Patrick", events=events)
 
         export_blob = export_json(catalogue)
 
-        event = create_event()
-        catalogue.add_events(event)
+        event = generate_event()
+
+        add_events_to_catalogue(catalogue, event)
 
         with self.assertRaises(ValueError):
             import_json(export_blob)
@@ -435,7 +437,7 @@ class TestTrash(unittest.TestCase):
         tscat._backend = tscat.orm_sqlalchemy.Backend(testing=True)  # create a memory-database for tests
 
     def create_events_for_test(self, count: int = 6):
-        events = [create_event() for _ in range(count)]
+        events = [generate_event() for _ in range(count)]
         for i in range(count):
             if i < 3:
                 events[i].author = 'Patrick'
@@ -444,7 +446,7 @@ class TestTrash(unittest.TestCase):
         return events
 
     def create_catalogues_for_test(self, count: int = 4):
-        catalogues = [create_catalogue() for _ in range(count)]
+        catalogues = [generate_catalogue() for _ in range(count)]
         for i in range(count):
             if i < 2:
                 catalogues[i].author = "Patrick"
@@ -468,7 +470,7 @@ class TestTrash(unittest.TestCase):
 
     def test_event_is_removed_and_cannot_be_retrieved_via_catalogue(self):
         events = self.create_events_for_test()
-        catalogue = Catalogue("TestTrashEventCatalogue", "Patrick", events=events)
+        catalogue = create_catalogue("TestTrashEventCatalogue", "Patrick", events=events)
 
         events[0].remove()
         events_after_remove = get_events(catalogue)
@@ -483,16 +485,16 @@ class TestTrash(unittest.TestCase):
 
     def test_event_is_removed_and_cannot_be_retrieved_via_dynamic_catalogue(self):
         events = self.create_events_for_test()
-        catalogue = Catalogue("TestTrashEventCatalogue", "Patrick",
-                              predicate=Comparison('==', Field('author'), 'Patrick'),
-                              events=events[3:])
+        catalogue = create_catalogue("TestTrashEventCatalogue", "Patrick",
+                                     predicate=Comparison('==', Field('author'), 'Patrick'),
+                                     events=events[3:])
 
         events[0].remove()
         events_after_remove = get_events(catalogue)
         self.assertListEqual(events_after_remove, events[1:])
 
     def test_catalogue_is_removed_and_cannot_be_retrieved_via_get_catalogue(self):
-        catalogues = [create_catalogue() for _ in range(2)]
+        catalogues = [generate_catalogue() for _ in range(2)]
         catalogues[0].remove()
 
         catalogues_after_remove = get_catalogues()
@@ -518,8 +520,8 @@ class TestTrash(unittest.TestCase):
 
     def test_event_is_removed_and_restored_then_retrieved_via_get_events_with_catalogue(self):
         events = self.create_events_for_test()
-        catalogue = create_catalogue()
-        catalogue.add_events(events)
+        catalogue = generate_catalogue()
+        add_events_to_catalogue(catalogue, events)
 
         events[0].remove()
         events_after_remove = get_events(catalogue)
@@ -530,7 +532,7 @@ class TestTrash(unittest.TestCase):
         self.assertListEqual(events_after_restore, events)
 
     def test_catalogue_is_removed_and_restored_and_retrieved_via_get_catalogue(self):
-        catalogues = [create_catalogue() for _ in range(2)]
+        catalogues = [generate_catalogue() for _ in range(2)]
         catalogues[0].remove()
 
         catalogues_after_remove = get_catalogues()
@@ -578,7 +580,7 @@ class TestTrash(unittest.TestCase):
         cat, = self.create_catalogues_for_test(1)
         ev = self.create_events_for_test(3)
 
-        cat.add_events(ev)
+        add_events_to_catalogue(cat, ev)
 
         ev[0].remove()
         ev[1].remove()
@@ -590,7 +592,7 @@ class TestTrash(unittest.TestCase):
         cat, = self.create_catalogues_for_test(1)
         ev = self.create_events_for_test(3)
 
-        cat.add_events(ev)
+        add_events_to_catalogue(cat, ev)
 
         cat.remove()
 
@@ -621,7 +623,7 @@ class TestTrash(unittest.TestCase):
         cat, = self.create_catalogues_for_test(1)
         ev = self.create_events_for_test(3)
 
-        cat.add_events(ev)
+        add_events_to_catalogue(cat, ev)
 
         self.assertListEqual(get_events(cat), ev)
 
@@ -638,13 +640,13 @@ class TestTrash(unittest.TestCase):
         ev.remove(permanently=True)
 
         with self.assertRaises(ValueError):
-            cat.add_events(ev)
+            add_events_to_catalogue(cat, ev)
 
     def test_permanently_remove_event_from_catalogue_makes_it_disappear(self):
         cat, = self.create_catalogues_for_test(1)
         ev = self.create_events_for_test(2)
 
-        cat.add_events(ev)
+        add_events_to_catalogue(cat, ev)
 
         self.assertListEqual(get_events(cat), ev)
         self.assertListEqual(get_events(), ev)

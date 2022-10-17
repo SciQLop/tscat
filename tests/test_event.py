@@ -4,7 +4,7 @@ import unittest
 from ddt import ddt, data, unpack  # type: ignore
 
 import tscat.orm_sqlalchemy
-from tscat import Event
+from tscat import create_event
 
 import datetime as dt
 import re
@@ -40,7 +40,7 @@ class TestEvent(unittest.TestCase):
     )
     @unpack
     def test_constructor_various_combinations_all_ok(self, start, stop, author, uuid, attrs, tags=[], products=[]):
-        e = Event(start, stop, author, uuid, tags, products, **attrs)
+        e = create_event(start, stop, author, uuid, tags, products, **attrs)
 
         self.assertEqual(e.start, start)
         self.assertEqual(e.stop, stop)
@@ -76,23 +76,23 @@ class TestEvent(unittest.TestCase):
     def test_constructor_various_combinations_value_error(self, start, stop, author, uuid, attrs, tags=[],
                                                           products=[]):
         with self.assertRaises(ValueError):
-            assert Event(start, stop, author, uuid, tags, products, **attrs)
+            assert create_event(start, stop, author, uuid, tags, products, **attrs)
 
     def test_unequal_events(self):
         t1, t2 = dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1)
 
-        a, b = Event(t1, t2, "Patrick"), Event(t1, t2, "Patrick"),
+        a, b = create_event(t1, t2, "Patrick"), create_event(t1, t2, "Patrick"),
         self.assertNotEqual(a, b)
 
         # two Events are never equal because of the UUID
-        a, b = Event(t1, t2, "Patrick"), Event(t1, t2, "Patrick"),
+        a, b = create_event(t1, t2, "Patrick"), create_event(t1, t2, "Patrick"),
         self.assertNotEqual(a, b)
 
     def test_constructor_with_dynamic_attribute_manual_access(self):
         dt_val = dt.datetime.now()
-        e = Event(dt_val + dt.timedelta(days=1), dt_val + dt.timedelta(days=2), "Patrick",
-                  '7b732d98-da74-11eb-89a0-f3d357f13cae',
-                  field_int=100, field_float=1.234, field_str="string-test", field_bool=True, field_dt=dt_val)
+        e = create_event(dt_val + dt.timedelta(days=1), dt_val + dt.timedelta(days=2), "Patrick",
+                         '7b732d98-da74-11eb-89a0-f3d357f13cae',
+                         field_int=100, field_float=1.234, field_str="string-test", field_bool=True, field_dt=dt_val)
 
         self.assertEqual(e.start, dt_val + dt.timedelta(days=1))
         self.assertEqual(e.stop, dt_val + dt.timedelta(days=2))

@@ -8,10 +8,12 @@ from .filtering import Predicate, UUID as UUIDFilter
 
 import json
 import re
-from typing import Dict, List, Union, Tuple, Iterable
+from typing import Dict, List, Union, Tuple, Iterable, Any, TYPE_CHECKING
 from uuid import uuid4, UUID
 
 from . import orm_sqlalchemy
+if TYPE_CHECKING:
+    from .orm_sqlalchemy.orm import Event, Catalogue
 
 import datetime as dt
 
@@ -39,6 +41,37 @@ def _verify_attribute_names(kwargs: Dict) -> Dict:
         if not _valid_key.match(k):
             raise ValueError('Invalid key-name for event-meta-data in kwargs:', k)
     return kwargs
+
+
+class Session:
+    def __init__(self):
+        self.entities: List[Union['Event', 'Catalogue']] = []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_tb):
+        backend().add_and_flush(self.entities)
+
+    def create_event(self, *args: Any, **kwargs: Any) -> '_Event':
+        e = _Event(*args, **kwargs)
+        self.entities.append(e._backend_entity)
+        return e
+
+    def create_catalogue(self, *args: Any, **kwargs: Any) -> '_Catalogue':
+        c = _Catalogue(*args, **kwargs)
+        self.entities.append(c._backend_entity)
+        return c
+
+    @staticmethod
+    def add_events_to_catalogue(catalogue: '_Catalogue', events: Union['_Event', List['_Event']]):
+        backend().add_events_to_catalogue(catalogue._backend_entity,
+                                          [event._backend_entity for event in _listify(events)])
+
+    @staticmethod
+    def remove_events_from_catalogue(catalogue: '_Catalogue', events: Union['_Event', List['_Event']]):
+        backend().remove_events_from_catalogue(catalogue._backend_entity,
+                                               [event._backend_entity for event in _listify(events)])
 
 
 class _BackendBasedEntity:
@@ -113,7 +146,7 @@ class _BackendBasedEntity:
         backend().restore(self._backend_entity)
 
 
-class Event(_BackendBasedEntity):
+class _Event(_BackendBasedEntity):
     _fixed_keys = ['start', 'stop', 'author', 'uuid', 'tags', 'products']
 
     def __init__(self, start: dt.datetime, stop: dt.datetime,
@@ -166,20 +199,19 @@ class Event(_BackendBasedEntity):
             if any(type(v) != str for v in value):
                 raise ValueError("a tag has to be a string")
 
-        super(Event, self).__setattr__(key, value)
+        super(_Event, self).__setattr__(key, value)
 
     def __repr__(self):
         return self.representation('Event')
 
 
-class Catalogue(_BackendBasedEntity):
+class _Catalogue(_BackendBasedEntity):
     _fixed_keys = ['name', 'author', 'uuid', 'tags', 'predicate']
 
     def __init__(self, name: str, author: str,
                  uuid: str = None,
                  tags: Iterable[str] = [],
                  predicate: Predicate = None,
-                 events: List[Event] = None,
                  _insert: bool = True,
                  **kwargs):
         self._in_ctor = True
@@ -210,18 +242,7 @@ class Catalogue(_BackendBasedEntity):
                 'attributes': kwargs,
             })
 
-            if events:
-                self.add_events(events)
-
         self._in_ctor = False
-
-    def add_events(self, events: Union[Event, List[Event]]):
-        backend().add_events_to_catalogue(self._backend_entity,
-                                          [event._backend_entity for event in _listify(events)])
-
-    def remove_events(self, events: Union[Event, List[Event]]):
-        backend().remove_events_from_catalogue(self._backend_entity,
-                                               [event._backend_entity for event in _listify(events)])
 
     def is_dynamic(self):
         return self.predicate is not None
@@ -236,18 +257,40 @@ class Catalogue(_BackendBasedEntity):
             if any(type(v) != str for v in value):
                 raise ValueError("a tag has to be a string")
 
-        super(Catalogue, self).__setattr__(key, value)
+        super(_Catalogue, self).__setattr__(key, value)
 
     def __repr__(self):
         return self.representation('Catalogue')
 
 
-def get_catalogues(base: Union[Predicate, Event, None] = None, removed_items: bool = False) -> List[Catalogue]:
-    base_dict: Dict[str, Union[Predicate, Event, None, bool]]
+def create_event(*args, **kwargs) -> _Event:
+    with Session() as s:
+        return s.create_event(*args, **kwargs)
+
+
+def create_catalogue(*args, events: List[_Event] = [], **kwargs) -> _Catalogue:
+    with Session() as s:
+        c = s.create_catalogue(*args, **kwargs)
+        s.add_events_to_catalogue(c, events)
+        return c
+
+
+def add_events_to_catalogue(catalogue: _Catalogue, events: List[_Event]) -> None:
+    with Session() as s:
+        s.add_events_to_catalogue(catalogue, events)
+
+
+def remove_events_from_catalogue(catalogue: _Catalogue, events: List[_Event]) -> None:
+    with Session() as s:
+        s.remove_events_from_catalogue(catalogue, events)
+
+
+def get_catalogues(base: Union[Predicate, _Event, None] = None, removed_items: bool = False) -> List[_Catalogue]:
+    base_dict: Dict[str, Union[Predicate, _Event, None, bool]]
 
     if isinstance(base, Predicate):
         base_dict = {'predicate': base}
-    elif isinstance(base, Event):
+    elif isinstance(base, _Event):
         base_dict = {'entity': base._backend_entity}
     else:
         base_dict = {}
@@ -256,18 +299,18 @@ def get_catalogues(base: Union[Predicate, Event, None] = None, removed_items: bo
 
     catalogues = []
     for cat in backend().get_catalogues(base_dict):
-        c = Catalogue(cat['name'], cat['author'], cat['uuid'], cat['tags'], cat['predicate'],
-                      None, **cat['attributes'], _insert=False)
+        c = _Catalogue(cat['name'], cat['author'], cat['uuid'], cat['tags'], cat['predicate'],
+                       _insert=False, **cat['attributes'])
         c._backend_entity = cat['entity']
         catalogues += [c]
     return catalogues
 
 
-def get_events(base: Union[Predicate, Catalogue, None] = None, removed_items: bool = False) -> List[Event]:
-    base_dict: Dict[str, Union[Predicate, Catalogue, None, bool]]
+def get_events(base: Union[Predicate, _Catalogue, None] = None, removed_items: bool = False) -> List[_Event]:
+    base_dict: Dict[str, Union[Predicate, _Catalogue, None, bool]]
     if isinstance(base, Predicate):
         base_dict = {'predicate': base}
-    elif isinstance(base, Catalogue):
+    elif isinstance(base, _Catalogue):
         base_dict = {'entity': base._backend_entity,
                      'predicate': base.predicate}
     else:
@@ -277,8 +320,8 @@ def get_events(base: Union[Predicate, Catalogue, None] = None, removed_items: bo
 
     events = []
     for ev in backend().get_events(base_dict):
-        e = Event(ev['start'], ev['stop'], ev['author'], ev['uuid'], ev['tags'], ev['products'],
-                  **ev['attributes'], _insert=False)
+        e = _Event(ev['start'], ev['stop'], ev['author'], ev['uuid'], ev['tags'], ev['products'],
+                   **ev['attributes'], _insert=False)
         e._backend_entity = ev['entity']
         events.append(e)
     return events
@@ -296,7 +339,7 @@ def has_unsaved_changes() -> bool:
     return backend().has_unsaved_changes()
 
 
-def export_json(catalogue: Catalogue) -> str:
+def export_json(catalogue: _Catalogue) -> str:
     events = get_events(catalogue)
 
     events_uuids = [event.uuid for event in events]
@@ -348,18 +391,20 @@ def import_canonicalized_dict(import_dict: dict):
     event_of_uuid = {}
 
     # import all new events
-    for event in import_dict['events']:
-        event['start'] = dt.datetime.fromisoformat(event['start'])
-        event['stop'] = dt.datetime.fromisoformat(event['stop'])
-        event_of_uuid[event['uuid']] = Event(**event)
+    with Session() as s:
+        for event in import_dict['events']:
+            event['start'] = dt.datetime.fromisoformat(event['start'])
+            event['stop'] = dt.datetime.fromisoformat(event['stop'])
+            event_of_uuid[event['uuid']] = s.create_event(**event)
 
-    for catalogue in import_dict['catalogues']:
-        catalogue_events = [event_of_uuid[uuid] if uuid in event_of_uuid
-                            else get_events(UUIDFilter(uuid))[0]
-                            for uuid in catalogue['events']]
-        del catalogue['events']
+        for catalogue_dict in import_dict['catalogues']:
+            catalogue_events = [event_of_uuid[uuid] if uuid in event_of_uuid
+                                else get_events(UUIDFilter(uuid))[0]
+                                for uuid in catalogue_dict['events']]
+            del catalogue_dict['events']
 
-        Catalogue(**catalogue, events=catalogue_events)
+            catalogue = s.create_catalogue(**catalogue_dict)
+            s.add_events_to_catalogue(catalogue, catalogue_events)
 
 
 def import_json(jsons: str) -> None:
