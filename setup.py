@@ -41,7 +41,6 @@ setup(
     extras_require={
         'dev': [
             'appdirs-stubs',
-            'sqlalchemy-stubs',
             'sqlalchemy[mypy]',
             "pytest>=4.6.5",
             'pytest',
