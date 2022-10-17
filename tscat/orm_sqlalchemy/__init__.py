@@ -79,7 +79,7 @@ class PredicateVisitor:
 
     def _visit_has(self, has_: Has):
         return self._orm_class.attributes.any(
-            and_(self._orm_class._attribute_class.key == has_._operand.value,
+            and_(self._orm_class._attribute_class.key == has_._operand.value,  # type: ignore
                  self._orm_class._attribute_class.value is not None))  # type: ignore
 
     def _visit_match(self, match_: Match):
