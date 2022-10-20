@@ -12,6 +12,7 @@ from typing import Dict, List, Union, Tuple, Iterable, Any, TYPE_CHECKING
 from uuid import uuid4, UUID
 
 from . import orm_sqlalchemy
+
 if TYPE_CHECKING:
     from .orm_sqlalchemy.orm import Event, Catalogue
 
@@ -101,7 +102,7 @@ class _BackendBasedEntity:
 
     def __getattr__(self, name):
         if name == '_backend_entity' and name not in self.__dict__:
-            raise ValueError("You are trying to do an operation on an invalided object, " +
+            raise ValueError("You are attempting an operation on an invalid object, " +
                              "this may be because your object has been deleted, please try creating or " +
                              "getting a new one.")
         return super(_BackendBasedEntity, self).__getattr__(name)

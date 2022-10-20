@@ -6,15 +6,24 @@ from ..filtering import Predicate, Comparison, Field, Attribute, All, Any, Match
 import pickle
 import datetime as dt
 import os
+import orjson
 from appdirs import user_data_dir
 
 from typing import Union, List, Dict, Type, Set
 from typing_extensions import Literal
 
-from sqlalchemy import create_engine, and_, or_, not_, event
+from sqlalchemy import create_engine, and_, or_, not_, event, func, cast, String
 from sqlalchemy.orm import Session, Query
 
 from operator import __eq__, __ne__, __ge__, __gt__, __le__, __lt__
+
+
+def _serialize_json(obj):
+    return orjson.dumps(obj, option=orjson.OPT_NAIVE_UTC).decode('utf-8')
+
+
+def _deserialize_json(obj):
+    return orjson.loads(obj)
 
 
 class PredicateVisitor:
@@ -41,9 +50,10 @@ class PredicateVisitor:
             return op_map[comp._op](lhs, rhs)
 
         elif isinstance(comp._lhs, Attribute):
-            return self._orm_class.attributes.any(
-                and_(self._orm_class._attribute_class.key == comp._lhs.value,
-                     op_map[comp._op](self._orm_class._attribute_class.value, rhs)))  # type: ignore
+            return and_(
+                self._orm_class.attributes[comp._lhs.value] != 'null',
+                op_map[comp._op](self._orm_class.attributes[comp._lhs.value], _serialize_json(rhs))
+            )
 
     def _visit_all(self, all_: All):
         return and_(self.visit_predicate(pred) for pred in all_._predicates)
@@ -54,16 +64,17 @@ class PredicateVisitor:
     def _visit_not(self, not__: Not):
         return not_(self.visit_predicate(not__._operand))
 
-    def _visit_in(self, in_: In):
+    def _visit_in(self, in_: In):  # cast lists and json to string and regex-match
         if isinstance(in_._rhs, Field):
-            rhs = getattr(self._orm_class, in_._rhs.value)
-            return rhs.any(name=in_._lhs)  # name and product's field are called `name`
-
+            f = cast(getattr(self._orm_class, in_._rhs.value), String)
+            v = in_._lhs
+            # ugly, sqlite's Regex seems not to support (?:,|^)-regexes
+            return or_(f == v,
+                       f.regexp_match(f'^{v},'),
+                       f.regexp_match(f',{v},'),
+                       f.regexp_match(f',{v}$'))
         elif isinstance(in_._rhs, Attribute):
-            return self._orm_class.attributes.any(
-                and_(self._orm_class._attribute_class.key == in_._rhs.value,
-                     self._orm_class._attribute_class.value.contains([in_._lhs]))  # type: ignore
-            )
+            return cast(self._orm_class.attributes[in_._rhs.value], String).regexp_match(f'"{in_._lhs}"')
 
     def _visit_in_catalogue(self, in_catalogue: InCatalogue):
         if self._orm_class == orm.Catalogue:
@@ -78,9 +89,7 @@ class PredicateVisitor:
             return getattr(self._orm_class, "catalogues").any(id=in_catalogue.catalogue._backend_entity.id)
 
     def _visit_has(self, has_: Has):
-        return self._orm_class.attributes.any(
-            and_(self._orm_class._attribute_class.key == has_._operand.value,  # type: ignore
-                 self._orm_class._attribute_class.value is not None))  # type: ignore
+        return self._orm_class.attributes[has_._operand.value] != 'null'
 
     def _visit_match(self, match_: Match):
         if isinstance(match_._lhs, Field):
@@ -88,9 +97,9 @@ class PredicateVisitor:
             return lhs.regexp_match(match_._rhs)
 
         elif isinstance(match_._lhs, Attribute):
-            return self._orm_class.attributes.any(
-                and_(self._orm_class._attribute_class.key == match_._lhs.value,
-                     self._orm_class._attribute_class.value.regexp_match(match_._rhs)))  # type: ignore
+            lhs = self._orm_class.attributes[match_._lhs.value]
+            # SQLAlechmy always add JSON_QUOTE around JSON-fields, to regex-match we substr away the quotes
+            return func.substr(lhs, 2, func.length(lhs) - 2).regexp_match(match_._rhs)
 
     def visit_predicate(self, pred: Predicate):
         if id(pred) in self.visited_predicates:
@@ -126,8 +135,10 @@ class Backend:
                 os.makedirs(db_file_path)
             url = f'sqlite:///{db_file_path}/backend.sqlite'
 
-        # self.engine = create_engine(url, echo=True)
-        self.engine = create_engine(url)
+        # self.engine = create_engine(url, echo=True,
+        self.engine = create_engine(url,
+                                    json_serializer=_serialize_json,
+                                    json_deserializer=_deserialize_json)
 
         # use BEGIN EXCLUSIVE to lock database exclusively to one process
         @event.listens_for(self.engine, "begin")
@@ -138,56 +149,31 @@ class Backend:
 
         self.session = Session(bind=self.engine, autoflush=True)
 
-    def _get_or_create(self, model, **kwargs):
-        instance = self.session.query(model).filter_by(**kwargs).one_or_none()
-        if instance:
-            return instance
-        else:
-            instance = model(**kwargs)
-            self.session.add(instance)
-            return instance
-
     def _specialiced_serialization(self, key, value):
-        if key == "tags":
-            return [self._get_or_create(orm.Tag, name=tag) for tag in value]
-        elif key == "products":
-            return [self._get_or_create(orm.EventProduct, name=product) for product in value]
-        elif key == "predicate":
+        if key == "predicate":
             return pickle.dumps(value, protocol=3)
 
     def add_catalogue(self, catalogue: Dict) -> orm.Catalogue:
         serialized_predicate = self._specialiced_serialization('predicate', catalogue['predicate']) \
             if catalogue['predicate'] is not None else None
-        tags = self._specialiced_serialization('tags', catalogue['tags'])
 
         entity = orm.Catalogue(catalogue['name'],
                                catalogue['author'],
                                catalogue['uuid'],
-                               tags,
-                               serialized_predicate)
-
-        # need to use []-operator because of proxy-class in sqlalchemy - update() on __dict__ does not work
-        for k, v in catalogue['attributes'].items():
-            entity[k] = v
+                               catalogue['tags'],
+                               serialized_predicate,
+                               catalogue['attributes'])
 
         return entity
 
     def add_event(self, event: Dict) -> orm.Event:
-        tags = self._specialiced_serialization('tags', event['tags'])
-        products = self._specialiced_serialization('products', event['products'])
-
-        entity = orm.Event(event['start'],
-                           event['stop'],
-                           event['author'],
-                           event['uuid'],
-                           tags,
-                           products)
-
-        # need to use []-operator because of proxy-class in sqlalchemy - update() on __dict__ does not work
-        for k, v in event['attributes'].items():
-            entity[k] = v
-
-        return entity
+        return orm.Event(event['start'],
+                         event['stop'],
+                         event['author'],
+                         event['uuid'],
+                         event['tags'],
+                         event['products'],
+                         event['attributes'])
 
     def add_events_to_catalogue(self, catalogue: orm.Catalogue, events: List[orm.Event]) -> None:
         for e in events:
@@ -200,17 +186,17 @@ class Backend:
             catalogue.events.remove(e)
 
     def update_field(self, entity: Union[orm.Event, orm.Catalogue], key: str, value) -> None:
-        if key in ['products', 'tags', 'predicate']:
+        if key in ['predicate']:
             value = self._specialiced_serialization(key, value)
         setattr(entity, key, value)
 
     @staticmethod
     def update_attribute(entity: Union[orm.Event, orm.Catalogue], key: str, value) -> None:
-        entity[key] = value
+        entity.attributes[key] = value
 
     @staticmethod
     def delete_attribute(entity: Union[orm.Event, orm.Catalogue], key: str) -> None:
-        del entity[key]
+        del entity.attributes[key]
 
     def _create_query(self, base: Dict,
                       orm_class: Union[Type[orm.Event], Type[orm.Catalogue]],
@@ -241,13 +227,12 @@ class Backend:
     def get_catalogues(self, base: Dict = {}) -> List[Dict]:
         catalogues = []
         for c in self._create_query(base, orm.Catalogue, 'events', removed=base['removed']):
-            attr = {v.key: v.value for _, v in c.attributes.items()}
             catalogue = {"name": c.name,
                          "author": c.author,
                          "uuid": c.uuid,
-                         "tags": [tag.name for tag in c.tags],
+                         "tags": c.tags,
                          "predicate": pickle.loads(c.predicate) if c.predicate else None,
-                         "attributes": attr,
+                         "attributes": c.attributes,
                          "entity": c}
             catalogues.append(catalogue)
 
@@ -256,15 +241,14 @@ class Backend:
     def get_events(self, base: Dict = {}) -> List[Dict]:
         events = []
         for e in self._create_query(base, orm.Event, 'catalogues', removed=base['removed']):
-            attr = {v.key: v.value for _, v in e.attributes.items()}
             event = {
                 "start": e.start,
                 "stop": e.stop,
                 "author": e.author,
                 "uuid": e.uuid,
-                "tags": [tag.name for tag in e.tags],
-                "products": [product.name for product in e.products],
-                "attributes": attr,
+                "tags": e.tags,
+                "products": e.products,
+                "attributes": e.attributes,
                 "entity": e}
             events.append(event)
 
