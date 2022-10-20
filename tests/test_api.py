@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import unittest
 from ddt import ddt, data, unpack  # type: ignore
 
@@ -17,11 +15,6 @@ from random import choice
 class TestAPIAttributes(unittest.TestCase):
     def setUp(self) -> None:
         tscat._backend = tscat.orm_sqlalchemy.Backend(testing=True)  # create a memory-database for tests
-
-    def test_unsupported_attribute_type_raises(self):
-        with self.assertRaises(TypeError):
-            create_event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick",
-                         unsupported_dict_attr={'Hello': 'World'})
 
     def test_event_basic_add_get_sequence(self):
         e1 = create_event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick")

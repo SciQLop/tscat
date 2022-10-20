@@ -15,6 +15,7 @@ requirements = [
     'sqlalchemy[mypy]<2',
     "appdirs>=1.4.4 ",
     "SQLAlchemy_Utils>=0.37.8",
+    'orjson',
 ]
 
 test_requirements = [
@@ -46,6 +47,8 @@ setup(
             'pytest-pep8',
             'pytest-cov',
             'mypy',
+            'ddt',
+            'pytest-timeout'
         ]
     },
     license="GNU General Public License v3",

@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import unittest
 from ddt import ddt, data, unpack  # type: ignore
 from typing import List
