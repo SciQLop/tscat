@@ -287,7 +287,7 @@ def remove_events_from_catalogue(catalogue: _Catalogue, events: List[_Event]) ->
 
 
 def get_catalogues(base: Union[Predicate, _Event, None] = None, removed_items: bool = False) -> List[_Catalogue]:
-    base_dict: Dict[str, Union[Predicate, _Event, None, bool]]
+    base_dict: Dict[str, Union[Predicate, 'Event', None, bool]]
 
     if isinstance(base, Predicate):
         base_dict = {'predicate': base}
@@ -308,7 +308,7 @@ def get_catalogues(base: Union[Predicate, _Event, None] = None, removed_items: b
 
 
 def get_events(base: Union[Predicate, _Catalogue, None] = None, removed_items: bool = False) -> List[_Event]:
-    base_dict: Dict[str, Union[Predicate, _Catalogue, None, bool]]
+    base_dict: Dict[str, Union[Predicate, 'Catalogue', None, bool]]
     if isinstance(base, Predicate):
         base_dict = {'predicate': base}
     elif isinstance(base, _Catalogue):
