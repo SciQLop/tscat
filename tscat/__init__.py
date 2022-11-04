@@ -23,7 +23,7 @@ _valid_key = re.compile(r'^[A-Za-z][A-Za-z_0-9]*$')
 _backend = None
 
 
-def backend():
+def backend() -> orm_sqlalchemy.Backend:
     global _backend
     if not _backend:  # pragma: no cover
         _backend = orm_sqlalchemy.Backend()  # during tests this line should never be called - this it's uncovered
@@ -362,16 +362,26 @@ def canonicalize_json_import(jsons: str) -> dict:
     # if existing and not identical raise
     # if not existing import
 
+
+    uuids = [event['uuid'] for event in import_dict['events']]
+    events = backend().get_events_by_uuid_list(uuids)
+
     for event in import_dict['events'][:]:
-        check_event = get_events(UUIDFilter(event['uuid']))
-        if len(check_event) != 0:
-            dumped_event = check_event[0].dump()
-            dumped_event['start'] = str(dumped_event['start'])
-            dumped_event['stop'] = str(dumped_event['stop'])
-            if dumped_event != event:
-                raise ValueError(f'Import: event with UUID {event["uuid"]} already exists in database, ' +
-                                 'but with different values.')
-            import_dict['events'].remove(event)
+        if event['uuid'] not in events:
+            continue
+
+        check_event = events[event['uuid']]
+        del check_event['entity']
+        check_event.update(check_event['attributes'])
+        del check_event['attributes']
+
+        check_event['start'] = str(check_event['start'])
+        check_event['stop'] = str(check_event['stop'])
+
+        if check_event != event:
+            raise ValueError(f'Import: event with UUID {event["uuid"]} already exists in database, ' +
+                             'but with different values.')
+        import_dict['events'].remove(event)
 
     for catalogue in import_dict['catalogues'][:]:
         check_catalogue = get_catalogues(UUIDFilter(catalogue['uuid']))
@@ -388,7 +398,7 @@ def canonicalize_json_import(jsons: str) -> dict:
     return import_dict
 
 
-def import_canonicalized_dict(import_dict: dict):
+def import_canonicalized_dict(import_dict: dict) -> None:
     event_of_uuid = {}
 
     # import all new events

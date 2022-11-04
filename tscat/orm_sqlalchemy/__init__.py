@@ -254,6 +254,21 @@ class Backend:
 
         return events
 
+    def get_events_by_uuid_list(self, uuids: List[str]) -> Dict[str, Dict]:
+        d = {}
+        for e in self.session.query(orm.Event).filter(orm.Event.uuid.in_(uuids)).all():
+            d[e.uuid] = {
+                "start": e.start,
+                "stop": e.stop,
+                "author": e.author,
+                "uuid": e.uuid,
+                "tags": e.tags,
+                "products": e.products,
+                "attributes": e.attributes,
+                "entity": e}
+
+        return d
+
     def add_and_flush(self, entity_list: List[Union[orm.Event, orm.Catalogue]]):
         self.session.add_all(entity_list)
         self.session.flush()
