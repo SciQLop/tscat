@@ -2,7 +2,7 @@
 
 __author__ = """Patrick Boettcher"""
 __email__ = 'p@yai.se'
-__version__ = '0.1.0'
+__version__ = '0.2.0'
 
 from .filtering import Predicate, UUID as UUIDFilter
 
