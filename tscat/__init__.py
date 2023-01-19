@@ -8,7 +8,7 @@ from .filtering import Predicate, UUID as UUIDFilter
 
 import json
 import re
-from typing import Dict, List, Union, Tuple, Iterable, Any, TYPE_CHECKING
+from typing import Dict, List, Union, Tuple, Iterable, Any, Optional, TYPE_CHECKING
 from uuid import uuid4, UUID
 
 from . import orm_sqlalchemy
@@ -45,13 +45,13 @@ def _verify_attribute_names(kwargs: Dict) -> Dict:
 
 
 class Session:
-    def __init__(self):
+    def __init__(self) -> None:
         self.entities: List[Union['Event', 'Catalogue']] = []
 
-    def __enter__(self):
+    def __enter__(self) -> 'Session':
         return self
 
-    def __exit__(self, exc_type, exc_value, exc_tb):
+    def __exit__(self, exc_type, exc_value, exc_tb) -> None:
         backend().add_and_flush(self.entities)
 
     def create_event(self, *args: Any, **kwargs: Any) -> '_Event':
@@ -152,7 +152,7 @@ class _Event(_BackendBasedEntity):
 
     def __init__(self, start: dt.datetime, stop: dt.datetime,
                  author: str,
-                 uuid: str = None,
+                 uuid: Optional[str] = None,
                  tags: Iterable[str] = [],
                  products: Iterable[str] = [],
                  _insert: bool = True,
@@ -210,9 +210,9 @@ class _Catalogue(_BackendBasedEntity):
     _fixed_keys = ['name', 'author', 'uuid', 'tags', 'predicate']
 
     def __init__(self, name: str, author: str,
-                 uuid: str = None,
+                 uuid: Optional[str] = None,
                  tags: Iterable[str] = [],
-                 predicate: Predicate = None,
+                 predicate: Optional[Predicate] = None,
                  _insert: bool = True,
                  **kwargs):
         self._in_ctor = True
