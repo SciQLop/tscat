@@ -279,6 +279,8 @@ class TestAPIField(unittest.TestCase):
         (ValueError, lambda x: setattr(x, 'start', dt.datetime.now() + dt.timedelta(days=2))),
         (ValueError, lambda x: setattr(x, 'stop', dt.datetime.now() - dt.timedelta(days=2))),
         (ValueError, lambda x: setattr(x, 'uuid', 'invalid-uuid')),
+        (ValueError, lambda x: setattr(x, 'tags', ['value,with,comma'])),
+        (ValueError, lambda x: setattr(x, 'products', ['value,with,comma'])),
         (IndexError, lambda x: delattr(x, 'start')),
         (IndexError, lambda x: delattr(x, 'stop')),
         (IndexError, lambda x: delattr(x, 'author')),
@@ -294,6 +296,7 @@ class TestAPIField(unittest.TestCase):
     @data(
         (ValueError, lambda x: setattr(x, 'name', '')),
         (ValueError, lambda x: setattr(x, 'uuid', 'invalid-uuid')),
+        (ValueError, lambda x: setattr(x, 'tags', ['value,with,comma'])),
         (IndexError, lambda x: delattr(x, 'name')),
         (IndexError, lambda x: delattr(x, 'author')),
         (IndexError, lambda x: delattr(x, 'uuid')),

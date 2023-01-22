@@ -199,6 +199,8 @@ class _Event(_BackendBasedEntity):
         elif key in ['tags', 'products']:
             if any(type(v) != str for v in value):
                 raise ValueError("a tag has to be a string")
+            if any(',' in v for v in value):
+                raise ValueError("a string-list value shall not contain a comma")
 
         super(_Event, self).__setattr__(key, value)
 
@@ -257,6 +259,8 @@ class _Catalogue(_BackendBasedEntity):
         elif key == 'tags':
             if any(type(v) != str for v in value):
                 raise ValueError("a tag has to be a string")
+            if any(',' in v for v in value):
+                raise ValueError("a string-list value shall not contain a comma")
 
         super(_Catalogue, self).__setattr__(key, value)
 
