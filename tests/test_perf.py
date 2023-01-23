@@ -1,6 +1,7 @@
 import unittest
-
+import os
 import pytest
+
 import tscat
 from tscat.filtering import In, Field
 import datetime as dt
@@ -13,6 +14,8 @@ tscat._backend = tscat.orm_sqlalchemy.Backend(testing=True)  # create a memory-d
 
 class TestPerformance(unittest.TestCase):
     def setUp(self) -> None:
+        if "GITHUB_ACTION" in os.environ or os.environ.get('COVERAGE_RUN', 'false') == 'true':
+            self.skipTest("skip perf-tests on GitHub and during coverage.")
         tscat._backend = tscat.orm_sqlalchemy.Backend(testing=True)  # create a memory-database for tests
 
     @pytest.mark.timeout(5)
@@ -38,10 +41,10 @@ class TestPerformance(unittest.TestCase):
     @pytest.mark.timeout(3.5)
     def test_get(self):
         with tscat.Session() as s:
-           events = [s.create_event(start, stop, author='Patrick', field1=1, field2=1, tags=['tag1', 'tag2']) for _ in
-                     range(10000)]
-           c = s.create_catalogue('TestP', 'Patrick')
-           s.add_events_to_catalogue(c, events)
+            events = [s.create_event(start, stop, author='Patrick', field1=1, field2=1, tags=['tag1', 'tag2']) for _ in
+                      range(10000)]
+            c = s.create_catalogue('TestP', 'Patrick')
+            s.add_events_to_catalogue(c, events)
 
         c = tscat.get_catalogues()[0]
         e = tscat.get_events(c)
