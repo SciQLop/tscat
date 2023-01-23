@@ -276,12 +276,12 @@ def create_catalogue(*args, events: List[_Event] = [], **kwargs) -> _Catalogue:
         return c
 
 
-def add_events_to_catalogue(catalogue: _Catalogue, events: List[_Event]) -> None:
+def add_events_to_catalogue(catalogue: _Catalogue, events: Union[_Event, List[_Event]]) -> None:
     with Session() as s:
         s.add_events_to_catalogue(catalogue, events)
 
 
-def remove_events_from_catalogue(catalogue: _Catalogue, events: List[_Event]) -> None:
+def remove_events_from_catalogue(catalogue: _Catalogue, events: Union[_Event, List[_Event]]) -> None:
     with Session() as s:
         s.remove_events_from_catalogue(catalogue, events)
 
