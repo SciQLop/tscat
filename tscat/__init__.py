@@ -345,7 +345,7 @@ def has_unsaved_changes() -> bool:
 
 
 def export_json(catalogues: Union[List[_Catalogue], _Catalogue]) -> str:
-    events = []
+    events = {}
     catalogue_dumps = []
 
     for catalogue in _listify(catalogues):
@@ -354,8 +354,7 @@ def export_json(catalogues: Union[List[_Catalogue], _Catalogue]) -> str:
 
         for event in events_of_catalogue:
             events_uuids.append(event.uuid)
-            if event not in events:
-                events.append(event)
+            events[event.uuid] = event
 
         catalogue_dump = catalogue.dump()
         catalogue_dump.update({"events": events_uuids})
@@ -363,7 +362,7 @@ def export_json(catalogues: Union[List[_Catalogue], _Catalogue]) -> str:
 
     export_dict = {
         'catalogues': catalogue_dumps,
-        'events': [event.dump() for event in events],
+        'events': [event.dump() for event in events.values()],
     }
     return json.dumps(export_dict, default=str)
 

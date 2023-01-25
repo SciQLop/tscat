@@ -447,7 +447,6 @@ class TestImportExport(unittest.TestCase):
         def s(l):
             return sorted(l, key=lambda x: x.uuid)
 
-
         assert s(events1 + shared_events + events2) == s(get_events())
         assert s(events1 + shared_events) == s(get_events(catalogue1))
         assert s(events2 + shared_events) == s(get_events(catalogue2))
