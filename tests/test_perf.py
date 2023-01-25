@@ -60,3 +60,19 @@ class TestPerformance(unittest.TestCase):
 
         e = tscat.get_events(In('tag1', Field('tags')))
         self.assertEqual(len(e), 10000)
+
+    @pytest.mark.timeout(6)  # we create 2x 10K events
+    def test_export_import_catalogue_with_many_events_shall_be_reasonably_fast(self):
+        with tscat.Session() as s:
+            events = [s.create_event(start, stop, author='Patrick') for _ in range(10000)]
+            c = s.create_catalogue('Test1', 'Patrick')
+            s.add_events_to_catalogue(c, events)
+
+        export_blob = tscat.export_json(c)
+
+        tscat.discard()
+
+        tscat.import_json(export_blob)
+
+        assert events == tscat.get_events()
+        assert [c] == tscat.get_catalogues()
