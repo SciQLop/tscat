@@ -427,6 +427,33 @@ class TestImportExport(unittest.TestCase):
         with self.assertRaises(ValueError):
             import_json(export_blob)
 
+    def test_multiple_catalogues_with_shared_and_individual_events(self):
+        shared_events = [generate_event() for _ in range(2)]
+
+        events1 = [generate_event() for _ in range(2)]
+        events2 = [generate_event() for _ in range(2)]
+
+        catalogue1 = create_catalogue("TestExportImportCatalogue1", "Patrick",
+                                      events=events1 + shared_events)
+        catalogue2 = create_catalogue("TestExportImportCatalogue2", "Patrick",
+                                      events=events2 + shared_events)
+
+        export_blob = export_json([catalogue1, catalogue2])
+
+        discard()
+
+        import_json(export_blob)
+
+        def s(l):
+            return sorted(l, key=lambda x: x.uuid)
+
+
+        assert s(events1 + shared_events + events2) == s(get_events())
+        assert s(events1 + shared_events) == s(get_events(catalogue1))
+        assert s(events2 + shared_events) == s(get_events(catalogue2))
+
+        assert s([catalogue1, catalogue2]) == s(get_catalogues())
+
 
 class TestTrash(unittest.TestCase):
     def setUp(self) -> None:

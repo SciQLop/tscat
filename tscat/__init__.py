@@ -344,15 +344,25 @@ def has_unsaved_changes() -> bool:
     return backend().has_unsaved_changes()
 
 
-def export_json(catalogue: _Catalogue) -> str:
-    events = get_events(catalogue)
+def export_json(catalogues: Union[List[_Catalogue], _Catalogue]) -> str:
+    events = []
+    catalogue_dumps = []
 
-    events_uuids = [event.uuid for event in events]
+    for catalogue in _listify(catalogues):
+        events_of_catalogue = get_events(catalogue)
+        events_uuids = []
 
-    catalogue_dump = catalogue.dump()
-    catalogue_dump.update({"events": events_uuids})
+        for event in events_of_catalogue:
+            events_uuids.append(event.uuid)
+            if event not in events:
+                events.append(event)
+
+        catalogue_dump = catalogue.dump()
+        catalogue_dump.update({"events": events_uuids})
+        catalogue_dumps.append(catalogue_dump)
+
     export_dict = {
-        'catalogues': [catalogue_dump],
+        'catalogues': catalogue_dumps,
         'events': [event.dump() for event in events],
     }
     return json.dumps(export_dict, default=str)
@@ -365,7 +375,6 @@ def canonicalize_json_import(jsons: str) -> dict:
     # if existing and identical - remove from import-dict
     # if existing and not identical raise
     # if not existing import
-
 
     uuids = [event['uuid'] for event in import_dict['events']]
     events = backend().get_events_by_uuid_list(uuids)
