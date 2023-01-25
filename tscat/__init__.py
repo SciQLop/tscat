@@ -382,6 +382,7 @@ def canonicalize_json_import(jsons: str) -> dict:
         if event['uuid'] not in events:
             continue
 
+        # to compare the existing event the to be imported event be transformed as it is in event from the backend
         check_event = events[event['uuid']]
         del check_event['entity']
         check_event.update(check_event['attributes'])
@@ -400,8 +401,14 @@ def canonicalize_json_import(jsons: str) -> dict:
         if len(check_catalogue) != 0:
             events_uuids = [event.uuid for event in get_events(check_catalogue[0])]
             catalogue_dump = check_catalogue[0].dump()
-            catalogue_dump.update({'events': events_uuids})
 
+            # convert the existing catalogue so that it can be compared with the to be imported one
+            events_uuids.sort()
+            catalogue_dump.update({'events': events_uuids})
+            if catalogue_dump['predicate']:
+                catalogue_dump['predicate'] = str(catalogue_dump['predicate'])
+
+            catalogue['events'].sort()
             if catalogue_dump != catalogue:
                 raise ValueError(f'Import: catalogue with UUID {catalogue["uuid"]} already exists in database, ' +
                                  'but with different values.')
