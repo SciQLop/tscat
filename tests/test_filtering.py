@@ -153,6 +153,16 @@ class TestEventFiltering(unittest.TestCase):
         event_list = get_events(All(pred))
         self.assertListEqual(event_list, [events[i] for i in idx])
 
+    def test_get_only_manually_added_events_from_dynamic_catalogue(self):
+        cat = create_catalogue('T', 'A')
+        cat.predicate = Comparison("==", Field('author'), 'Patrick')
+
+        assert get_events(cat) == [events[0]]
+
+        add_events_to_catalogue(cat, events[1])
+        assert get_events(cat) == [events[0], events[1]]
+
+        assert get_events(cat, assigned_only=True) == [events[1]]
 
 @ddt
 class TestStringListAttributes(unittest.TestCase):

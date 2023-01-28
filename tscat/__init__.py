@@ -311,13 +311,16 @@ def get_catalogues(base: Union[Predicate, _Event, None] = None, removed_items: b
     return catalogues
 
 
-def get_events(base: Union[Predicate, _Catalogue, None] = None, removed_items: bool = False) -> List[_Event]:
+def get_events(base: Union[Predicate, _Catalogue, None] = None,
+               removed_items: bool = False,
+               assigned_only: bool = False) -> List[_Event]:
     base_dict: Dict[str, Union[Predicate, 'Catalogue', None, bool]]
     if isinstance(base, Predicate):
         base_dict = {'predicate': base}
     elif isinstance(base, _Catalogue):
-        base_dict = {'entity': base._backend_entity,
-                     'predicate': base.predicate}
+        base_dict = {'entity': base._backend_entity}
+        if not assigned_only:
+            base_dict['predicate'] = base.predicate
     else:
         base_dict = {}
 
