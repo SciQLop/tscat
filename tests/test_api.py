@@ -477,17 +477,23 @@ class TestImportExport(unittest.TestCase):
 
         assert s([catalogue1, catalogue2]) == s(get_catalogues())
 
-    def test_export_import_of_existing_dynamic_catalogue(self):
+    def test_of_existing_dynamic_catalogue_doesnt_crash(self):
         events = [generate_event() for _ in range(2)]
         events[0].author = "Patrick"
         events[1].author = "Alexis"
 
         c = create_catalogue("Events_of_Alexis", "Patrick", predicate=Comparison('==', Field('author'), 'Alexis'))
 
+        assert get_catalogues() == [c]
+        assert get_events() == events
         assert get_events(c) == [events[1]]
 
         export_blob = export_json(c)
         import_json(export_blob)
+
+        assert get_catalogues() == [c]
+        assert get_events() == events
+        assert get_events(c) == [events[1]]
 
 
 class TestTrash(unittest.TestCase):
