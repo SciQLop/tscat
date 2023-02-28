@@ -103,7 +103,7 @@ class UUID(Comparison):
 
 
 class InCatalogue(Predicate):
-    def __init__(self, catalogue: Union['_Catalogue', None] = None):
+    def __init__(self, catalogue: '_Catalogue'):
         self.catalogue = catalogue
 
     def __repr__(self):

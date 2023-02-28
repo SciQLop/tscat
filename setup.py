@@ -16,6 +16,7 @@ requirements = [
     "appdirs>=1.4.4 ",
     "SQLAlchemy_Utils>=0.37.8",
     'orjson',
+    'astropy',
 ]
 
 test_requirements = [

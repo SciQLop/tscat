@@ -1,9 +1,13 @@
 import unittest
 from ddt import ddt, data, unpack  # type: ignore
+import os
+import tempfile
 
 import tscat.orm_sqlalchemy
 from tscat import create_event, create_catalogue, add_events_to_catalogue, get_events, \
-    discard, save, has_unsaved_changes, export_json, import_json, get_catalogues
+    discard, save, has_unsaved_changes, export_json, import_json, get_catalogues, \
+    import_votable, export_votable
+
 from tscat.filtering import Comparison, Field
 import tscat
 
@@ -347,7 +351,7 @@ def generate_catalogue() -> tscat._Catalogue:
         attr_str_list_empty=[])
 
 
-class TestImportExport(unittest.TestCase):
+class TestImportExportJSON(unittest.TestCase):
     def setUp(self) -> None:
         tscat._backend = tscat.orm_sqlalchemy.Backend(testing=True)  # create a memory-database for tests
 
@@ -719,3 +723,202 @@ class TestTrash(unittest.TestCase):
 
         self.assertListEqual(get_events(cat), ev[1:])
         self.assertListEqual(get_events(), ev[1:])
+
+
+class TestImportExportVOTable(unittest.TestCase):
+    def setUp(self) -> None:
+        tscat._backend = tscat.orm_sqlalchemy.Backend(testing=True)  # create a memory-database for tests
+
+    def test_data_is_preserved_with_multiple_export_import_cycles_in_empty_database(self):
+        events = [generate_event() for _ in range(10)]
+        catalogue = create_catalogue("TestExportImportCatalogue", "Patrick", events=events)
+
+        for _ in range(3):
+            with tempfile.NamedTemporaryFile('w+') as f:
+                export_vot = export_votable(catalogue)
+                export_vot.to_xml(f)
+
+                discard()
+
+                self.assertEqual(len(get_events()), 0)
+                self.assertEqual(len(get_catalogues()), 0)
+
+                import_votable(f.name)
+
+                self.assertListEqual(events, get_events())
+
+                name = f'{os.path.basename(f.name)}_0 - imported'
+                new_catalogue = get_catalogues()[0]
+
+                assert new_catalogue.name == name
+                assert new_catalogue.author == 'VOTable Import'
+                assert new_catalogue.uuid != catalogue.uuid
+
+    def test_data_is_preserved_when_importing_over_existing_events_and_catalogues_in_database(self):
+        events = [generate_event() for _ in range(10)]
+        catalogue = create_catalogue("TestExportImportCatalogue", "Patrick", events=events)
+
+        for i in range(3):
+            with tempfile.NamedTemporaryFile('w+') as f:
+                export_vot = export_votable(catalogue)
+                export_vot.to_xml(f)
+
+                import_votable(f.name)
+
+                assert events == get_events()
+                assert len(get_catalogues()) == i + 2
+
+    def test_importing_a_catalogue_where_all_events_are_already_present(self):
+        events = [generate_event() for _ in range(10)]
+        catalogue = create_catalogue("TestExportImportCatalogue", "Patrick", events=events)
+
+        with tempfile.NamedTemporaryFile('w+') as f:
+            export_vot = export_votable(catalogue)
+            export_vot.to_xml(f)
+
+            catalogue.remove(permanently=True)
+
+            import_votable(f.name)
+
+        assert events == get_events()
+        assert len(get_catalogues()) == 1
+
+    def test_exception_raised_upon_event_import_with_same_uuid_but_different_attrs(self):
+        events = [generate_event() for _ in range(2)]
+        catalogue = create_catalogue("TestExportImportCatalogue", "Patrick", events=events)
+
+        with tempfile.NamedTemporaryFile('w+') as f:
+            export_vot = export_votable(catalogue)
+            export_vot.to_xml(f)
+
+            events[0].author = "Someone Else"
+
+            with self.assertRaises(ValueError):
+                import_votable(f.name)
+
+
+    def test_votable_no_exception_raised_reimporting_catalogue(self):
+        events = [generate_event() for _ in range(2)]
+        catalogue = create_catalogue("TestExportImportCatalogue", "Patrick", events=events)
+
+        with tempfile.NamedTemporaryFile('w+') as f:
+            export_vot = export_votable(catalogue)
+            export_vot.to_xml(f)
+
+            event = generate_event()
+
+            add_events_to_catalogue(catalogue, event)
+
+            import_votable(f.name)
+
+    def test_export_import_multiple_catalogues_with_shared_and_individual_events(self):
+        shared_events = [generate_event() for _ in range(2)]
+
+        events1 = [generate_event() for _ in range(2)]
+        events2 = [generate_event() for _ in range(2)]
+
+        catalogue1 = create_catalogue("TestExportImportCatalogue1", "Patrick",
+                                      events=events1 + shared_events)
+        catalogue2 = create_catalogue("TestExportImportCatalogue2", "Patrick",
+                                      events=events2 + shared_events)
+
+        with tempfile.NamedTemporaryFile('w+') as f:
+            export_vot = export_votable([catalogue1, catalogue2])
+            export_vot.to_xml(f)
+
+            discard()
+
+            catalogue1, catalogue2 = import_votable(f.name)
+
+            def s(l):
+                return sorted(l, key=lambda x: x.uuid)
+
+            assert s(events1 + shared_events + events2) == s(get_events())
+            assert s(events1 + shared_events) == s(get_events(catalogue1))
+            assert s(events2 + shared_events) == s(get_events(catalogue2))
+
+            assert len(get_catalogues()) == 2
+
+    def test_import_multiple_catalogues_with_shared_and_individual_but_already_existing_events(self):
+        shared_events = [generate_event() for _ in range(2)]
+
+        events1 = [generate_event() for _ in range(2)]
+        events2 = [generate_event() for _ in range(2)]
+
+        catalogue1 = create_catalogue("TestExportImportCatalogue1", "Patrick",
+                                      events=events1 + shared_events)
+        catalogue2 = create_catalogue("TestExportImportCatalogue2", "Patrick",
+                                      events=events2 + shared_events)
+
+        with tempfile.NamedTemporaryFile('w+') as f:
+            export_vot = export_votable([catalogue1, catalogue2])
+            export_vot.to_xml(f)
+
+            catalogue1, catalogue2 = import_votable(f.name)
+
+            def s(l):
+                return sorted(l, key=lambda x: x.uuid)
+
+            assert s(events1 + shared_events + events2) == s(get_events())
+            assert s(events1 + shared_events) == s(get_events(catalogue1))
+            assert s(events2 + shared_events) == s(get_events(catalogue2))
+
+            assert len(get_catalogues()) == 4
+
+    def test_of_existing_dynamic_catalogue_doesnt_crash(self):
+        events = [generate_event() for _ in range(2)]
+        events[0].author = "Patrick"
+        events[1].author = "Alexis"
+
+        c = create_catalogue("Events_of_Alexis", "Patrick", predicate=Comparison('==', Field('author'), 'Alexis'))
+
+        assert get_catalogues() == [c]
+        assert get_events() == events
+        assert get_events(c) == [events[1]]
+
+        with tempfile.NamedTemporaryFile('w+') as f:
+            export_vot = export_votable(c)
+            export_vot.to_xml(f)
+
+            d = import_votable(f.name)
+
+        assert get_catalogues() == [c, d[0]]
+        assert get_events() == events
+        assert get_events(c) == [events[1]]
+
+    def test_raise_when_importing_votable_with_unhandled_field_type(self):
+        with self.assertRaises(ValueError):
+            import_votable('tests/invalid-type-votable.xml')
+
+    def test_raise_when_missing_required_field(self):
+        with self.assertRaises(ValueError):
+            import_votable('tests/missing-required-field-votable.xml')
+
+    def test_import_amda_exported_table(self):
+        catalogue, = import_votable('tests/Dst_Li2020.xml')
+
+        assert get_catalogues() == [catalogue]
+        assert len(get_events()) == 95
+        assert len(get_events(catalogue)) == 95
+        assert len(get_events(Comparison('==', Field('author'), 'VOTImport'))) == 95
+
+    def test_raise_if_attributes_are_missing(self):
+        events = [generate_event() for _ in range(3)]
+        events[0].attr = 123
+        events[1].attr = 234
+
+        catalogue = create_catalogue("TestExportImportCatalogue1", "Patrick", events=events)
+
+        with self.assertRaises(ValueError):
+            export_votable(catalogue)
+
+    def test_raise_if_attributes_with_same_name_have_different_types(self):
+        events = [generate_event() for _ in range(3)]
+        events[0].attr = 123
+        events[1].attr = 234
+        events[2].attr = 'str'
+
+        catalogue = create_catalogue("TestExportImportCatalogue1", "Patrick", events=events)
+
+        with self.assertRaises(ValueError):
+            export_votable(catalogue)

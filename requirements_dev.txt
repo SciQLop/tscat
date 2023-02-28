@@ -18,3 +18,4 @@ orjson
 appdirs-stubs
 mypy
 pytest-timeout
+astropy
