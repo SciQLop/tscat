@@ -4,10 +4,10 @@ import itertools
 import json
 import os
 from typing import Dict, List, Union, Tuple, Any, Optional, Type, Callable
-from uuid import uuid4, UUID
+from uuid import uuid4
 
 from .base import get_catalogues, get_events, _Catalogue, _Event, backend, Session, _listify
-from .filtering import UUID as UUIDFilter
+from .filtering import UUID
 
 
 @dataclass
@@ -79,7 +79,7 @@ def __canonicalize_from_dict(data: Dict[str, Any]) -> __CanonicalizedTSCatData:
         data['events'].remove(event)
 
     for catalogue in data['catalogues'][:]:
-        check_catalogue = get_catalogues(UUIDFilter(catalogue['uuid']))
+        check_catalogue = get_catalogues(UUID(catalogue['uuid']))
         if len(check_catalogue) != 0:
             events_uuids = [event.uuid for event in get_events(check_catalogue[0])]
             catalogue_dump = check_catalogue[0].dump()
@@ -112,7 +112,7 @@ def __import_canonicalized_dict(data: __CanonicalizedTSCatData) -> List[_Catalog
 
         for catalogue_dict in data.catalogues:
             catalogue_events = [event_of_uuid[uuid] if uuid in event_of_uuid
-                                else get_events(UUIDFilter(uuid))[0]
+                                else get_events(UUID(uuid))[0]
                                 for uuid in catalogue_dict['events']]
             del catalogue_dict['events']
 
