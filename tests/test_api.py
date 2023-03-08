@@ -18,7 +18,7 @@ from random import choice
 @ddt
 class TestAPIAttributes(unittest.TestCase):
     def setUp(self) -> None:
-        tscat._backend = tscat.orm_sqlalchemy.Backend(testing=True)  # create a memory-database for tests
+        tscat.base._backend = tscat.orm_sqlalchemy.Backend(testing=True)  # create a memory-database for tests
 
     def test_event_basic_add_get_sequence(self):
         e1 = create_event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick")
@@ -267,7 +267,7 @@ class TestAPIAttributes(unittest.TestCase):
 @ddt
 class TestAPIField(unittest.TestCase):
     def setUp(self) -> None:
-        tscat._backend = tscat.orm_sqlalchemy.Backend(testing=True)  # create a memory-database for tests
+        tscat.base._backend = tscat.orm_sqlalchemy.Backend(testing=True)  # create a memory-database for tests
 
     def test_basic(self):
         ev = create_event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick",
@@ -353,7 +353,7 @@ def generate_catalogue() -> tscat._Catalogue:
 
 class TestImportExportJSON(unittest.TestCase):
     def setUp(self) -> None:
-        tscat._backend = tscat.orm_sqlalchemy.Backend(testing=True)  # create a memory-database for tests
+        tscat.base._backend = tscat.orm_sqlalchemy.Backend(testing=True)  # create a memory-database for tests
 
     def test_data_is_preserved_with_multiple_export_import_cycles_in_empty_database(self):
         events = [generate_event() for _ in range(10)]
@@ -502,7 +502,7 @@ class TestImportExportJSON(unittest.TestCase):
 
 class TestTrash(unittest.TestCase):
     def setUp(self) -> None:
-        tscat._backend = tscat.orm_sqlalchemy.Backend(testing=True)  # create a memory-database for tests
+        tscat.base._backend = tscat.orm_sqlalchemy.Backend(testing=True)  # create a memory-database for tests
 
     def create_events_for_test(self, count: int = 6):
         events = [generate_event() for _ in range(count)]
@@ -727,7 +727,7 @@ class TestTrash(unittest.TestCase):
 
 class TestImportExportVOTable(unittest.TestCase):
     def setUp(self) -> None:
-        tscat._backend = tscat.orm_sqlalchemy.Backend(testing=True)  # create a memory-database for tests
+        tscat.base._backend = tscat.orm_sqlalchemy.Backend(testing=True)  # create a memory-database for tests
 
     def test_data_is_preserved_with_multiple_export_import_cycles_in_empty_database(self):
         events = [generate_event() for _ in range(10)]

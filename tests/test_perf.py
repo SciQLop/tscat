@@ -9,14 +9,14 @@ import datetime as dt
 start = dt.datetime.now()
 stop = dt.datetime.now() + dt.timedelta(days=1)
 
-tscat._backend = tscat.orm_sqlalchemy.Backend(testing=True)  # create a memory-database for tests
+tscat.base._backend = tscat.orm_sqlalchemy.Backend(testing=True)  # create a memory-database for tests
 
 
 class TestPerformance(unittest.TestCase):
     def setUp(self) -> None:
         if "GITHUB_ACTION" in os.environ or os.environ.get('COVERAGE_RUN', 'false') == 'true':
             self.skipTest("skip perf-tests on GitHub and during coverage.")
-        tscat._backend = tscat.orm_sqlalchemy.Backend(testing=True)  # create a memory-database for tests
+        tscat.base._backend = tscat.orm_sqlalchemy.Backend(testing=True)  # create a memory-database for tests
 
     @pytest.mark.timeout(5)
     def test_create_events_wo_keywords_wo_context_manager(self):
