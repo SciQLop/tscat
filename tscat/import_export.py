@@ -131,8 +131,6 @@ class __LocalEncoder(json.JSONEncoder):
         else:
             return str(obj)
 
-        return json.JSONEncoder.default(self, obj)
-
 
 def export_json(catalogues: Union[List[_Catalogue], _Catalogue]) -> str:
     data = __CanonicalizedTSCatData()
