@@ -278,11 +278,11 @@ def export_votable(catalogues: Union[List[_Catalogue], _Catalogue]) -> VOTableFi
     return votable
 
 
-def import_votable(filename: str, only_first_table: bool = True) -> List[_Catalogue]:
+def import_votable(filename: str) -> List[_Catalogue]:
     votable = parse(filename)
 
     author = 'VOTable Import'
-    name = os.path.basename(filename)
+    table_name = os.path.basename(filename)
 
     if votable.description:
         for line in str(votable.description).split(';'):
@@ -296,7 +296,7 @@ def import_votable(filename: str, only_first_table: bool = True) -> List[_Catalo
             if property == 'Contact':
                 author = value
             elif property == 'Name':
-                name = value
+                table_name = value
 
     ddict: Dict[str, List[Dict[str, Any]]] = {
         'catalogues': [],
@@ -321,13 +321,13 @@ def import_votable(filename: str, only_first_table: bool = True) -> List[_Catalo
                     f'VOTable import: cannot import field: {field.ID}, {field.name}, {field.datatype},' +
                     f'{field.xtype}')
 
-        if len(required_field_names) > 0:
-            raise ValueError(f'VOTable import: required fields are missing for table {name}_{i}')
-
-        if only_first_table or len(votable.iter_tables()) == 1:
-            this_name = name
+        if len(votable.resources[0].tables) == 1:
+            this_name = table_name
         else:
-            this_name = f'{name}_{i}'
+            this_name = f'{table_name}_{i}'
+
+        if len(required_field_names) > 0:
+            raise ValueError(f'VOTable import: required fields are missing for table {this_name}')
 
         catalogue = {'name': this_name,
                      'author': author,

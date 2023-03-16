@@ -753,6 +753,34 @@ class TestImportExportVOTable(unittest.TestCase):
                 assert new_catalogue.author == 'Patrick'
                 assert new_catalogue.uuid != catalogue.uuid
 
+    def test_import_names_are_correct_when_votable_contains_multiple_tables(self):
+        events = [generate_event() for _ in range(10)]
+        catalogues = [create_catalogue("CatA", "Patrick", events=events),
+                      create_catalogue("CatB", "Patrick", events=events)]
+
+        with tempfile.NamedTemporaryFile('w+') as f:
+            export_vot = export_votable(catalogues)
+            export_vot.to_xml(f)
+
+            discard()
+
+            import_votable(f.name)
+
+            self.assertListEqual(events, get_events())
+
+            c1, c2 = get_catalogues()
+
+            print(c1, c2)
+
+            name = os.path.basename(f.name)
+
+            assert c1.name == f'{name}_0'
+            assert c2.name == f'{name}_1'
+            assert c1.author == 'VOTable Import'
+            assert c2.author == 'VOTable Import'
+            assert c1.uuid != catalogues[0].uuid
+            assert c2.uuid != catalogues[1].uuid
+
     def test_data_is_preserved_when_importing_over_existing_events_and_catalogues_in_database(self):
         events = [generate_event() for _ in range(10)]
         catalogue = create_catalogue("TestExportImportCatalogue", "Patrick", events=events)
@@ -794,7 +822,6 @@ class TestImportExportVOTable(unittest.TestCase):
 
             with self.assertRaises(ValueError):
                 import_votable(f.name)
-
 
     def test_votable_no_exception_raised_reimporting_catalogue(self):
         events = [generate_event() for _ in range(2)]
