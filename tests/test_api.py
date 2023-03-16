@@ -747,11 +747,11 @@ class TestImportExportVOTable(unittest.TestCase):
 
                 self.assertListEqual(events, get_events())
 
-                name = f'{os.path.basename(f.name)}_0 - imported'
+                name = os.path.basename(f.name)
                 new_catalogue = get_catalogues()[0]
 
                 assert new_catalogue.name == name
-                assert new_catalogue.author == 'VOTable Import'
+                assert new_catalogue.author == 'Patrick'
                 assert new_catalogue.uuid != catalogue.uuid
 
     def test_data_is_preserved_when_importing_over_existing_events_and_catalogues_in_database(self):
@@ -900,7 +900,7 @@ class TestImportExportVOTable(unittest.TestCase):
         assert get_catalogues() == [catalogue]
         assert len(get_events()) == 95
         assert len(get_events(catalogue)) == 95
-        assert len(get_events(Comparison('==', Field('author'), 'VOTImport'))) == 95
+        assert len(get_events(Comparison('==', Field('author'), 'vincent.genot@irap.omp.eu'))) == 95
 
     def test_raise_if_attributes_are_missing(self):
         events = [generate_event() for _ in range(3)]

@@ -226,6 +226,11 @@ def __vo_table_field_from(arg: Union[Type, str]) -> __VOTableTSCatField:
 def export_votable(catalogues: Union[List[_Catalogue], _Catalogue]) -> VOTableFile:
     votable = VOTableFile()
 
+    catalogues = _listify(catalogues)
+
+    if len(catalogues) == 1:
+        votable.description = f'Contact:{catalogues[0].author};Name:{catalogues[0].name};'
+
     resource = Resource()
     votable.resources.append(resource)
 
@@ -273,10 +278,25 @@ def export_votable(catalogues: Union[List[_Catalogue], _Catalogue]) -> VOTableFi
     return votable
 
 
-def import_votable(filename: str) -> List[_Catalogue]:
+def import_votable(filename: str, only_first_table: bool = True) -> List[_Catalogue]:
     votable = parse(filename)
 
+    author = 'VOTable Import'
     name = os.path.basename(filename)
+
+    if votable.description:
+        for line in str(votable.description).split(';'):
+            line = line.strip()
+
+            values = line.split(':', 1)
+            if len(values) != 2:
+                continue
+            field, value = values
+            value = value.strip()
+            if field == 'Contact':
+                author = value
+            elif field == 'Name':
+                name = name
 
     ddict: Dict[str, List[Dict[str, Any]]] = {
         'catalogues': [],
@@ -304,8 +324,13 @@ def import_votable(filename: str) -> List[_Catalogue]:
         if len(required_field_names) > 0:
             raise ValueError(f'VOTable import: required fields are missing for table {name}_{i}')
 
-        catalogue = {'name': f'{name}_{i} - imported',
-                     'author': 'VOTable Import',
+        if only_first_table or len(votable.iter_tables()) == 1:
+            this_name = name
+        else:
+            this_name = f'{name}_{i}'
+
+        catalogue = {'name': this_name,
+                     'author': author,
                      'events': [],
                      'uuid': str(uuid4())}
 
@@ -315,7 +340,7 @@ def import_votable(filename: str) -> List[_Catalogue]:
         for l in table.array:
             event = {}
             if not has_author_field:
-                event['author'] = 'VOTImport'
+                event['author'] = author
 
             if not has_uuid_field:
                 event['uuid'] = str(uuid4())
