@@ -226,15 +226,15 @@ def __vo_table_field_from(arg: Union[Type, str]) -> __VOTableTSCatField:
 def export_votable(catalogues: Union[List[_Catalogue], _Catalogue]) -> VOTableFile:
     votable = VOTableFile()
 
-    catalogues = _listify(catalogues)
+    catalogues_list = _listify(catalogues)
 
-    if len(catalogues) == 1:
-        votable.description = f'Contact:{catalogues[0].author};Name:{catalogues[0].name};'
+    if len(catalogues_list) == 1:
+        votable.description = f'Contact:{catalogues_list[0].author};Name:{catalogues_list[0].name};'
 
     resource = Resource()
     votable.resources.append(resource)
 
-    for catalogue in _listify(catalogues):
+    for catalogue in catalogues_list:
         table = Table(votable, name=catalogue.name.replace(' ', '_'))
         resource.tables.append(table)
 
@@ -291,11 +291,11 @@ def import_votable(filename: str, only_first_table: bool = True) -> List[_Catalo
             values = line.split(':', 1)
             if len(values) != 2:
                 continue
-            field, value = values
+            property, value = values
             value = value.strip()
-            if field == 'Contact':
+            if property == 'Contact':
                 author = value
-            elif field == 'Name':
+            elif property == 'Name':
                 name = value
 
     ddict: Dict[str, List[Dict[str, Any]]] = {
