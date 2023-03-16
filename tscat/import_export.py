@@ -296,7 +296,7 @@ def import_votable(filename: str, only_first_table: bool = True) -> List[_Catalo
             if field == 'Contact':
                 author = value
             elif field == 'Name':
-                name = name
+                name = value
 
     ddict: Dict[str, List[Dict[str, Any]]] = {
         'catalogues': [],

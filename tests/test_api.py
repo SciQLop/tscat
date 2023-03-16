@@ -747,10 +747,9 @@ class TestImportExportVOTable(unittest.TestCase):
 
                 self.assertListEqual(events, get_events())
 
-                name = os.path.basename(f.name)
                 new_catalogue = get_catalogues()[0]
 
-                assert new_catalogue.name == name
+                assert new_catalogue.name == catalogue.name
                 assert new_catalogue.author == 'Patrick'
                 assert new_catalogue.uuid != catalogue.uuid
 
@@ -898,6 +897,7 @@ class TestImportExportVOTable(unittest.TestCase):
         catalogue, = import_votable('tests/Dst_Li2020.xml')
 
         assert get_catalogues() == [catalogue]
+        assert get_catalogues()[0].name == 'Dst_Li2020'
         assert len(get_events()) == 95
         assert len(get_events(catalogue)) == 95
         assert len(get_events(Comparison('==', Field('author'), 'vincent.genot@irap.omp.eu'))) == 95
