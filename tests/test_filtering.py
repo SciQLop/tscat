@@ -20,7 +20,7 @@ events = []
 catalogues = []
 
 # initialize the backend to testing before anything is done on the datebase
-tscat._backend = tscat.orm_sqlalchemy.Backend(testing=True)
+tscat.base._backend = tscat.orm_sqlalchemy.Backend(testing=True)
 
 
 @ddt
@@ -49,7 +49,7 @@ class TestFilterRepr(unittest.TestCase):
 class TestEventFiltering(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        tscat._backend = tscat.orm_sqlalchemy.Backend(testing=True)
+        tscat.base._backend = tscat.orm_sqlalchemy.Backend(testing=True)
 
         global events
         events = [
@@ -168,7 +168,7 @@ class TestEventFiltering(unittest.TestCase):
 class TestStringListAttributes(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        tscat._backend = tscat.orm_sqlalchemy.Backend(testing=True)
+        tscat.base._backend = tscat.orm_sqlalchemy.Backend(testing=True)
 
         global events
         events = [
@@ -218,7 +218,7 @@ class TestStringListAttributes(unittest.TestCase):
 class TestCatalogueFiltering(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        tscat._backend = tscat.orm_sqlalchemy.Backend(testing=True)
+        tscat.base._backend = tscat.orm_sqlalchemy.Backend(testing=True)
 
         global catalogues
         catalogues = [
@@ -327,7 +327,7 @@ class TestUUIDFiltering(unittest.TestCase):
 
     @classmethod
     def setUp(self) -> None:
-        tscat._backend = tscat.orm_sqlalchemy.Backend(testing=True)
+        tscat.base._backend = tscat.orm_sqlalchemy.Backend(testing=True)
 
         self.uuid1 = 'aa1b3598-babf-4317-9b54-4d7be254121e'
         self.uuid2 = 'aa1b3598-babf-4317-9b54-4d7be254121f'
@@ -365,7 +365,7 @@ class TestUUIDFiltering(unittest.TestCase):
 
 class TestEventFilteringOnCatalogues(unittest.TestCase):
     def setUp(self) -> None:
-        tscat._backend = tscat.orm_sqlalchemy.Backend(testing=True)
+        tscat.base._backend = tscat.orm_sqlalchemy.Backend(testing=True)
         self.c = create_catalogue('Catalogue A', "Alexis")
         self.d = create_catalogue('Catalogue B', "Patrick")
 

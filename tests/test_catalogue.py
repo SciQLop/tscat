@@ -13,7 +13,7 @@ import re
 @ddt
 class Testcreate_catalogue(unittest.TestCase):
     def setUp(self) -> None:
-        tscat._backend = tscat.orm_sqlalchemy.Backend(testing=True)  # create a memory-database for tests
+        tscat.base._backend = tscat.orm_sqlalchemy.Backend(testing=True)  # create a memory-database for tests
 
         self.events = [
             create_event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick"),
@@ -183,7 +183,7 @@ class Testcreate_catalogue(unittest.TestCase):
 @ddt
 class TestDynamiccreate_catalogue(unittest.TestCase):
     def setUp(self) -> None:
-        tscat._backend = tscat.orm_sqlalchemy.Backend(testing=True)  # create a memory-database for tests
+        tscat.base._backend = tscat.orm_sqlalchemy.Backend(testing=True)  # create a memory-database for tests
 
         self.events = [
             create_event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick"),

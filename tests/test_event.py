@@ -11,7 +11,7 @@ import re
 @ddt
 class TestEvent(unittest.TestCase):
     def setUp(self) -> None:
-        tscat._backend = tscat.orm_sqlalchemy.Backend(testing=True)  # create a memory-database for tests
+        tscat.base._backend = tscat.orm_sqlalchemy.Backend(testing=True)  # create a memory-database for tests
 
     @data(
         (dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick", None, {}),
