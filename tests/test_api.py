@@ -1,18 +1,16 @@
-import unittest
-from ddt import ddt, data, unpack  # type: ignore
+import datetime as dt
 import os
 import tempfile
+import unittest
+from random import choice
 
+import tscat
 import tscat.orm_sqlalchemy
+from ddt import ddt, data, unpack  # type: ignore
 from tscat import create_event, create_catalogue, add_events_to_catalogue, get_events, \
     discard, save, has_unsaved_changes, export_json, import_json, get_catalogues, \
     import_votable, export_votable
-
 from tscat.filtering import Comparison, Field
-import tscat
-
-import datetime as dt
-from random import choice
 
 
 @ddt
@@ -677,6 +675,15 @@ class TestTrash(unittest.TestCase):
 
         self.assertListEqual(get_catalogues(), [])
         self.assertListEqual(get_catalogues(removed_items=True), [])
+
+    def test_remove_catalogue_permanently_and_re_create_immediatly_simulating_create_undo(self):
+        cat, = self.create_catalogues_for_test(1)
+        self.assertListEqual(get_catalogues(), [cat])
+
+        cat.remove(permanently=True)
+
+        tscat.create_catalogue(cat.name, author=cat.author, uuid=cat.uuid)
+        assert len(get_catalogues()) == 1
 
     def test_remove_event_permanently(self):
         ev, = self.create_events_for_test(1)

@@ -285,6 +285,7 @@ class Backend:
     def remove(self, entity: Union[orm.Catalogue, orm.Event], permanently: bool = False) -> None:
         if permanently:
             self.session.delete(entity)
+            self.session.flush()
         else:
             entity.removed = True
 
