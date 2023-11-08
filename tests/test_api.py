@@ -731,6 +731,15 @@ class TestTrash(unittest.TestCase):
         self.assertListEqual(get_events(cat), ev[1:])
         self.assertListEqual(get_events(), ev[1:])
 
+    def test_get_only_filtered_events_of_dynamic_catalogue(self):
+        events = self.create_events_for_test()
+        catalogue = create_catalogue("Test", "Patrick",
+                                     predicate=Comparison('==', Field('author'), 'Patrick'),
+                                     events=events[3:])
+
+        filtered_only = get_events(catalogue, filtered_only=True)
+        self.assertListEqual(filtered_only, events[:3])
+
 
 class TestImportExportVOTable(unittest.TestCase):
     def setUp(self) -> None:
