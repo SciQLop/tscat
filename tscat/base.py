@@ -310,14 +310,40 @@ def get_catalogues(base: Union[Predicate, _Event, None] = None, removed_items: b
 
 def get_events(base: Union[Predicate, _Catalogue, None] = None,
                removed_items: bool = False,
-               assigned_only: bool = False) -> List[_Event]:
+               assigned_only: bool = False,
+               filtered_only: bool = False) -> List[_Event]:
+    """ Get events from the database.
+        If base is a Predicate, all events matching the predicate are returned.
+        If base is a Catalogue, all events in the catalogue are returned.
+        If base is None, all events are returned.
+        If removed_items is True, also removed events are returned.
+        If assigned_only is True, only events that are assigned to a catalogue are returned.
+        If filtered_only is True, only events that are filtered by a catalogue are returned.
+
+        Parameters
+        ----------
+        base: Predicate, Catalogue or None
+            The base for the query (see above)
+        removed_items: bool
+            If True, also removed events are returned
+        assigned_only: bool
+            If True, only events that have been added (assigned) to a catalogue are returned. If a predicate is given
+            this parameter is ignored.
+        filtered_only: bool
+            If True, only events that are filtered (matching the predicate) by the predicate of a
+            catalogue are returned. If a predicate is given this parameter is ignored.
+    """
+
     base_dict: Dict[str, Union[Predicate, 'Catalogue', None, bool]]
     if isinstance(base, Predicate):
         base_dict = {'predicate': base}
     elif isinstance(base, _Catalogue):
-        base_dict = {'entity': base._backend_entity}
-        if not assigned_only:
-            base_dict['predicate'] = base.predicate
+        base_dict = {'entity': base._backend_entity,
+                     'predicate': base.predicate}
+        if assigned_only:
+            del base_dict['predicate']
+        if filtered_only:
+            del base_dict['entity']
     else:
         base_dict = {}
 
