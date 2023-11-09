@@ -256,7 +256,7 @@ class TestAPIAttributes(unittest.TestCase):
         e = create_event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick", other_attr="asd",
                          other_attr2=123)
         keys = list(sorted(e.fixed_attributes().keys()))
-        self.assertListEqual(sorted(['author', 'products', 'start', 'stop', 'tags', 'uuid']), keys)
+        self.assertListEqual(sorted(['author', 'products', 'start', 'stop', 'tags', 'uuid', 'rating']), keys)
 
         keys = list(sorted(e.variable_attributes().keys()))
         self.assertListEqual(sorted(['other_attr', 'other_attr2']), keys)

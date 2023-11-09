@@ -34,18 +34,20 @@ class Event(Base):
 
     tags: List[str] = Column(ScalarListType(str), default=[], info={"type": (list, "string_list")})
     products: List[str] = Column(ScalarListType(str), default=[], info={"type": (list, "string_list")})
+    rating: int = Column(Integer, default=None, nullable=True)
 
     removed: bool = Column(Boolean, default=False, nullable=False)
 
     attributes: Dict[str, Any] = Column(MutableDict.as_mutable(JSON))
 
-    def __init__(self, start, stop, author, uuid, tags, products, attributes):
+    def __init__(self, start, stop, author, uuid, tags, products, rating, attributes):
         self.start = start
         self.stop = stop
         self.author = author
         self.uuid = uuid
         self.tags = tags
         self.products = products
+        self.rating = rating
         self.attributes = attributes
 
     def __repr__(self):  # pragma: no cover

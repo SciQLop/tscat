@@ -53,7 +53,7 @@ class TestEvent(unittest.TestCase):
         tags = re.escape(str(tags))
         products = re.escape(str(products))
         r = r'^Event\(start=.*, stop=.*, author=' + author + r', uuid=[0-9a-f-]{36}, tags=' + tags \
-            + r', products=' + products + r'\) attributes\(' + attr_repr + r'\)$'
+            + r', products=' + products + r', rating=None\) attributes\(' + attr_repr + r'\)$'
 
         self.assertRegex(f'{e}', r)
 
@@ -102,3 +102,30 @@ class TestEvent(unittest.TestCase):
         self.assertEqual(e.field_str, "string-test")
         self.assertEqual(e.field_bool, True)
         self.assertEqual(e.field_dt, dt_val)
+
+    def test_event_rating(self):
+        t1, t2 = dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1)
+
+        e = create_event(t1, t2, "Patrick")
+        self.assertEqual(e.rating, None)
+
+        e.rating = 1
+        self.assertEqual(e.rating, 1)
+
+        e.rating = 5
+        self.assertEqual(e.rating, 5)
+
+        e.rating = None
+        self.assertEqual(e.rating, None)
+
+        with self.assertRaises(ValueError):
+            e.rating = -1
+
+        with self.assertRaises(ValueError):
+            e.rating = 0
+
+        with self.assertRaises(ValueError):
+            e.rating = 1.5
+
+        with self.assertRaises(ValueError):
+            e.rating = 11

@@ -173,6 +173,7 @@ class Backend:
                          event['uuid'],
                          event['tags'],
                          event['products'],
+                         event['rating'],
                          event['attributes'])
 
     def add_events_to_catalogue(self, catalogue: orm.Catalogue, events: List[orm.Event]) -> None:
@@ -248,6 +249,7 @@ class Backend:
                 "uuid": e.uuid,
                 "tags": e.tags,
                 "products": e.products,
+                "rating": e.rating,
                 "attributes": e.attributes,
                 "entity": e}
             events.append(event)
@@ -264,6 +266,7 @@ class Backend:
                 "uuid": e.uuid,
                 "tags": e.tags,
                 "products": e.products,
+                "rating": e.rating,
                 "attributes": e.attributes,
                 "entity": e}
 

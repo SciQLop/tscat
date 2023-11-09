@@ -196,6 +196,9 @@ votable_tscat_fields = [
     __VOTableTSCatFieldSpecialDateTime({'name': "Start Time", 'ID': "TimeIntervalStart", 'ucd': "time.start"}, 'start'),
     __VOTableTSCatFieldSpecialDateTime({'name': "Stop Time", 'ID': "TimeIntervalStop", 'ucd': "time.end"}, 'stop'),
     __VOTableTSCatFieldSpecialDateTime({}),
+    __VOTableTSCatField(int, {'datatype': 'long'},
+                        lambda x: 0 if x is None else x,
+                        lambda x: None if x == 0 else x, 'rating'),
     __VOTableTSCatField(int, {'datatype': 'long'}, int, int),
     __VOTableTSCatField(float, {'datatype': 'double'}, float, float),
     __VOTableTSCatField(bool, {'datatype': 'boolean'}, bool, bool),
@@ -246,6 +249,7 @@ def export_votable(catalogues: Union[List[_Catalogue], _Catalogue]) -> VOTableFi
             ('uuid', __vo_table_field_from(str)),
             ('tags', __vo_table_field_from(list)),
             ('products', __vo_table_field_from(list)),
+            ('rating', __vo_table_field_from('rating')),
         ]
 
         events = get_events(catalogue)

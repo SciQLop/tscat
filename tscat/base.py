@@ -23,7 +23,7 @@ def backend() -> orm_sqlalchemy.Backend:
 
 
 def _listify(v) -> Union[List, Tuple]:
-    if type(v) in [list, tuple]:
+    if isinstance(v, (list, tuple)):
         return v
     else:
         return [v]
@@ -144,13 +144,14 @@ class _BackendBasedEntity:
         return self._removed
 
 class _Event(_BackendBasedEntity):
-    _fixed_keys = ['start', 'stop', 'author', 'uuid', 'tags', 'products']
+    _fixed_keys = ['start', 'stop', 'author', 'uuid', 'tags', 'products', 'rating']
 
     def __init__(self, start: dt.datetime, stop: dt.datetime,
                  author: str,
                  uuid: Optional[str] = None,
                  tags: Iterable[str] = [],
                  products: Iterable[str] = [],
+                 rating: Optional[int] = None,
                  _insert: bool = True,
                  **kwargs):
         self._in_ctor = True
@@ -161,6 +162,7 @@ class _Event(_BackendBasedEntity):
         self.author = author
         self.tags = list(tags)
         self.products = list(products)
+        self.rating = rating
 
         if not uuid:
             self.uuid = str(uuid4())
@@ -178,6 +180,7 @@ class _Event(_BackendBasedEntity):
                 'uuid': self.uuid,
                 'tags': self.tags,
                 'products': self.products,
+                'rating': self.rating,
                 'attributes': kwargs,
             })
 
@@ -193,10 +196,16 @@ class _Event(_BackendBasedEntity):
             if value < self.start:
                 raise ValueError("stop date has to be after start date")
         elif key in ['tags', 'products']:
-            if any(type(v) != str for v in value):
+            if any(not isinstance(v, str) for v in value):
                 raise ValueError("a tag has to be a string")
             if any(',' in v for v in value):
                 raise ValueError("a string-list value shall not contain a comma")
+        elif key == 'rating':
+            if value is not None:
+                if not isinstance(value, int):
+                    raise ValueError("rating has to be an integer value")
+                if value < 1 or value > 10:
+                    raise ValueError("rating has to be between 1 and 10")
 
         super(_Event, self).__setattr__(key, value)
 
@@ -253,7 +262,7 @@ class _Catalogue(_BackendBasedEntity):
             if not value:
                 raise ValueError('Catalogue name cannot be emtpy.')
         elif key == 'tags':
-            if any(type(v) != str for v in value):
+            if any(not isinstance(v, str) for v in value):
                 raise ValueError("a tag has to be a string")
             if any(',' in v for v in value):
                 raise ValueError("a string-list value shall not contain a comma")
@@ -325,7 +334,7 @@ def get_events(base: Union[Predicate, _Catalogue, None] = None,
 
     events = []
     for ev in backend().get_events(base_dict):
-        e = _Event(ev['start'], ev['stop'], ev['author'], ev['uuid'], ev['tags'], ev['products'],
+        e = _Event(ev['start'], ev['stop'], ev['author'], ev['uuid'], ev['tags'], ev['products'], ev['rating'],
                    **ev['attributes'], _insert=False)
         e._removed = removed_items
         e._backend_entity = ev['entity']
