@@ -292,7 +292,3 @@ class Backend:
     @staticmethod
     def restore(entity: Union[orm.Catalogue, orm.Event]) -> None:
         entity.removed = False
-
-    @staticmethod
-    def is_removed(entity: Union[orm.Catalogue, orm.Event]) -> bool:
-        return entity.removed
