@@ -68,6 +68,9 @@ class Session:
 
 
 class _BackendBasedEntity:
+    def __init__(self):
+        self._removed = False
+
     def representation(self, name: str) -> str:
         fix = ', '.join(k + '=' + str(v) for k, v in self.fixed_attributes().items())
         kv = ', '.join(k + '=' + str(v) for k, v in self.variable_attributes().items())
@@ -128,16 +131,17 @@ class _BackendBasedEntity:
         return True
 
     def remove(self, permanently: bool = False) -> None:
+        self._removed = True
+
         backend().remove(self._backend_entity, permanently=permanently)
         if permanently:
             del self._backend_entity
 
-    def is_removed(self) -> bool:
-        return backend().is_removed(self._backend_entity)
-
     def restore(self) -> None:
         backend().restore(self._backend_entity)
 
+    def is_removed(self) -> bool:
+        return self._removed
 
 class _Event(_BackendBasedEntity):
     _fixed_keys = ['start', 'stop', 'author', 'uuid', 'tags', 'products']
@@ -299,6 +303,7 @@ def get_catalogues(base: Union[Predicate, _Event, None] = None, removed_items: b
         c = _Catalogue(cat['name'], cat['author'], cat['uuid'], cat['tags'], cat['predicate'],
                        _insert=False, **cat['attributes'])
         c._backend_entity = cat['entity']
+        c._removed = removed_items
         catalogues += [c]
     return catalogues
 
@@ -322,6 +327,7 @@ def get_events(base: Union[Predicate, _Catalogue, None] = None,
     for ev in backend().get_events(base_dict):
         e = _Event(ev['start'], ev['stop'], ev['author'], ev['uuid'], ev['tags'], ev['products'],
                    **ev['attributes'], _insert=False)
+        e._removed = removed_items
         e._backend_entity = ev['entity']
         events.append(e)
     return events
