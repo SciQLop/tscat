@@ -1,11 +1,11 @@
+import datetime as dt
+import re
 import unittest
-from ddt import ddt, data, unpack  # type: ignore
+
+from ddt import data, ddt, unpack  # type: ignore
 
 import tscat.orm_sqlalchemy
 from tscat import create_event
-
-import datetime as dt
-import re
 
 
 @ddt
@@ -103,29 +103,33 @@ class TestEvent(unittest.TestCase):
         self.assertEqual(e.field_bool, True)
         self.assertEqual(e.field_dt, dt_val)
 
-    def test_event_rating(self):
+    @data(
+        (None,),
+        (1,),
+        (5,),
+    )
+    @unpack
+    def test_event_valid_rating_values(self, value):
         t1, t2 = dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1)
 
         e = create_event(t1, t2, "Patrick")
         self.assertEqual(e.rating, None)
 
-        e.rating = 1
-        self.assertEqual(e.rating, 1)
+        e.rating = value
+        self.assertEqual(e.rating, value)
 
-        e.rating = 5
-        self.assertEqual(e.rating, 5)
+    @data(
+        (-1,),
+        (0,),
+        (1.5,),
+        (11,),
+    )
+    @unpack
+    def test_event_invalid_rating_values(self, value):
+        t1, t2 = dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1)
 
-        e.rating = None
+        e = create_event(t1, t2, "Patrick")
         self.assertEqual(e.rating, None)
 
         with self.assertRaises(ValueError):
-            e.rating = -1
-
-        with self.assertRaises(ValueError):
-            e.rating = 0
-
-        with self.assertRaises(ValueError):
-            e.rating = 1.5
-
-        with self.assertRaises(ValueError):
-            e.rating = 11
+            e.rating = value
