@@ -208,6 +208,7 @@ class Backend:
         if base.get('predicate', None) is not None:
             f = PredicateVisitor(orm_class).visit_predicate(base['predicate'])
 
+        entity_filter = None
         if base.get('entity') is not None:
             entity_filter = getattr(orm_class, field).any(id=base['entity'].id)
             if f is not None:
@@ -220,14 +221,14 @@ class Backend:
         else:
             f = and_(getattr(orm_class, 'removed') == removed, f)
 
-        q = self.session.query(orm_class)
+        q = self.session.query(orm_class, entity_filter)
         if f is not None:
             q = q.filter(f)
         return q
 
     def get_catalogues(self, base: Dict = {}) -> List[Dict]:
         catalogues = []
-        for c in self._create_query(base, orm.Catalogue, 'events', removed=base['removed']):
+        for (c, assigned) in self._create_query(base, orm.Catalogue, 'events', removed=base['removed']):
             catalogue = {"name": c.name,
                          "author": c.author,
                          "uuid": c.uuid,
@@ -241,7 +242,7 @@ class Backend:
 
     def get_events(self, base: Dict = {}) -> List[Dict]:
         events = []
-        for e in self._create_query(base, orm.Event, 'catalogues', removed=base['removed']):
+        for (e, assigned) in self._create_query(base, orm.Event, 'catalogues', removed=base['removed']):
             event = {
                 "start": e.start,
                 "stop": e.stop,
@@ -251,7 +252,9 @@ class Backend:
                 "products": e.products,
                 "rating": e.rating,
                 "attributes": e.attributes,
-                "entity": e}
+                "entity": e,
+                "is_assigned": assigned,
+            }
             events.append(event)
 
         return events

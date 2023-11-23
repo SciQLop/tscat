@@ -1,11 +1,11 @@
 import datetime as dt
-
 import re
-from typing import Dict, List, Union, Tuple, Iterable, Any, Optional, TYPE_CHECKING
-from uuid import uuid4, UUID
+from dataclasses import dataclass
+from typing import Any, Dict, Iterable, List, Optional, TYPE_CHECKING, Tuple, Union
+from uuid import UUID, uuid4
 
-from .filtering import Predicate
 from . import orm_sqlalchemy
+from .filtering import Predicate
 
 if TYPE_CHECKING:
     from .orm_sqlalchemy.orm import Event, Catalogue
@@ -142,6 +142,7 @@ class _BackendBasedEntity:
 
     def is_removed(self) -> bool:
         return self._removed
+
 
 class _Event(_BackendBasedEntity):
     _fixed_keys = ['start', 'stop', 'author', 'uuid', 'tags', 'products', 'rating']
@@ -317,10 +318,52 @@ def get_catalogues(base: Union[Predicate, _Event, None] = None, removed_items: b
     return catalogues
 
 
+def __backend_to_event(ev: Dict, removed_item: bool) -> _Event:
+    e = _Event(ev['start'], ev['stop'], ev['author'], ev['uuid'], ev['tags'], ev['products'], ev['rating'],
+               **ev['attributes'], _insert=False)
+    e._removed = removed_item
+    e._backend_entity = ev['entity']
+    return e
+
+
+def _get_events_from_predicate_or_none(base: Union[Predicate, None], removed_items: bool) -> List[_Event]:
+    base_dict: Dict = {'removed': removed_items}
+    if isinstance(base, Predicate):
+        base_dict.update({'predicate': base})
+    events = []
+    for ev in backend().get_events(base_dict):
+        events.append(__backend_to_event(ev, removed_items))
+    return events
+
+
+@dataclass
+class EventQueryInformation:
+    assigned: bool
+
+
+def _get_events_from_catalogue(base: _Catalogue, removed_items: bool, assigned_only: bool, filtered_only: bool) \
+    -> Tuple[List[_Event], List[EventQueryInformation]]:
+    base_dict = {'entity': base._backend_entity,
+                 'predicate': base.predicate,
+                 'removed': removed_items}
+    if assigned_only:
+        del base_dict['predicate']
+    if filtered_only:
+        del base_dict['entity']
+
+    events = []
+    query_info = []
+    for ev in backend().get_events(base_dict):
+        events.append(__backend_to_event(ev, removed_items))
+        query_info.append(EventQueryInformation(assigned=ev['is_assigned']))
+
+    return events, query_info
+
+
+# MultipleDispatch
 def get_events(base: Union[Predicate, _Catalogue, None] = None,
                removed_items: bool = False,
-               assigned_only: bool = False,
-               filtered_only: bool = False) -> List[_Event]:
+               **kwargs: Any) -> Optional[Union[List[_Event], Tuple[List[_Event], List[EventQueryInformation]]]]:
     """ Get events from the database.
         If base is a Predicate, all events matching the predicate are returned.
         If base is a Catalogue, all events in the catalogue are returned.
@@ -342,30 +385,14 @@ def get_events(base: Union[Predicate, _Catalogue, None] = None,
             If True, only events that are filtered (matching the predicate) by the predicate of a
             catalogue are returned. If a predicate is given this parameter is ignored.
     """
-
-    base_dict: Dict[str, Union[Predicate, 'Catalogue', None, bool]]
-    if isinstance(base, Predicate):
-        base_dict = {'predicate': base}
+    if base is None or isinstance(base, Predicate):
+        return _get_events_from_predicate_or_none(base, removed_items)
     elif isinstance(base, _Catalogue):
-        base_dict = {'entity': base._backend_entity,
-                     'predicate': base.predicate}
-        if assigned_only:
-            del base_dict['predicate']
-        if filtered_only:
-            del base_dict['entity']
+        return _get_events_from_catalogue(base, removed_items,
+                                          assigned_only=kwargs.get('assigned_only', False),
+                                          filtered_only=kwargs.get('filtered_only', False))
     else:
-        base_dict = {}
-
-    base_dict.update({'removed': removed_items})
-
-    events = []
-    for ev in backend().get_events(base_dict):
-        e = _Event(ev['start'], ev['stop'], ev['author'], ev['uuid'], ev['tags'], ev['products'], ev['rating'],
-                   **ev['attributes'], _insert=False)
-        e._removed = removed_items
-        e._backend_entity = ev['entity']
-        events.append(e)
-    return events
+        return None
 
 
 def save() -> None:

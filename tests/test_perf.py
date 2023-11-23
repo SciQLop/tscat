@@ -47,7 +47,7 @@ class TestPerformance(unittest.TestCase):
             s.add_events_to_catalogue(c, events)
 
         c = tscat.get_catalogues()[0]
-        e = tscat.get_events(c)
+        e = tscat.get_events(c)[0]
         self.assertEqual(len(e), 10000)
 
     @pytest.mark.timeout(3.5)

@@ -6,6 +6,7 @@ from ddt import data, ddt, unpack  # type: ignore
 
 import tscat.orm_sqlalchemy
 from tscat import create_event
+from tscat.filtering import Field, Comparison
 
 
 @ddt
@@ -133,3 +134,31 @@ class TestEvent(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             e.rating = value
+
+    def test_is_assigned_true_when_added_to_catalogue_and_fetched_with_get_event(self):
+        t1, t2 = dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1)
+
+        e = create_event(t1, t2, "Patrick")
+        c = tscat.create_catalogue("test", "Patrick")
+        tscat.add_events_to_catalogue(c, [e])
+
+        _, info = tscat.get_events(c)
+        self.assertTrue(info[0].assigned)
+
+    def test_is_assigned_true_for_event_assigned_and_false_for_filtered_ones(self):
+        t1, t2 = dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1)
+
+        a, b, c = (create_event(t1, t2, "Patrick"), create_event(t1, t2, "Nicolas"),
+                   create_event(t1, t2, "Alexis"))
+
+        c = tscat.create_catalogue("test", "Patrick",
+                                   predicate=Comparison("==", Field('author'), "Alexis"))
+        tscat.add_events_to_catalogue(c, [a])
+
+        es, info = tscat.get_events(c)
+        self.assertEqual(len(es), 2)
+        self.assertTrue(info[0].assigned)
+        self.assertFalse(info[1].assigned)
+
+    def test_get_event_returns_none_if_invalid_base(self) -> None:
+        self.assertIsNone(tscat.get_events(1))

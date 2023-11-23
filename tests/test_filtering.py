@@ -157,12 +157,12 @@ class TestEventFiltering(unittest.TestCase):
         cat = create_catalogue('T', 'A')
         cat.predicate = Comparison("==", Field('author'), 'Patrick')
 
-        assert get_events(cat) == [events[0]]
+        assert get_events(cat)[0] == [events[0]]
 
         add_events_to_catalogue(cat, events[1])
-        assert get_events(cat) == [events[0], events[1]]
+        assert get_events(cat)[0] == [events[0], events[1]]
 
-        assert get_events(cat, assigned_only=True) == [events[1]]
+        assert get_events(cat, assigned_only=True)[0] == [events[1]]
 
 @ddt
 class TestStringListAttributes(unittest.TestCase):
@@ -392,12 +392,12 @@ class TestEventFilteringOnCatalogues(unittest.TestCase):
 
     def test_get_events_using_in_catalogue_with_a_dynamic_catalogue(self):
         n = create_catalogue('DynCatalogue', "Patrick", predicate=Comparison('==', Field("author"), 'Patrick'))
-        self.assertListEqual(get_events(n), self.events[0:1])
+        self.assertListEqual(get_events(n)[0], self.events[0:1])
 
     def test_get_events_using_in_catalogue_with_a_dynamic_catalogue_which_has_a_static_event(self):
         n = create_catalogue('DynCatalogue', "Patrick", predicate=Comparison('==', Field("author"), 'Patrick'))
         add_events_to_catalogue(n, self.events[1])
-        self.assertListEqual(get_events(n), self.events[0:2])
+        self.assertListEqual(get_events(n)[0], self.events[0:2])
 
     def test_raise_predicate_recursion_when_referencing_self(self):
         a = create_catalogue("TestCatalogue", "Patrick")

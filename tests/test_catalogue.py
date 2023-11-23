@@ -141,23 +141,23 @@ class Testcreate_catalogue(unittest.TestCase):
     def test_add_events_to_catalogue_constructor(self):
         c = create_catalogue("Catalogue Name", "Patrick", events=self.events)
 
-        event_list = get_events(c)
+        event_list = get_events(c)[0]
         self.assertListEqual(event_list, self.events)
 
         remove_events_from_catalogue(c, self.events[0])
 
-        event_list = get_events(c)
+        event_list = get_events(c)[0]
         self.assertListEqual(event_list, self.events[1:])
 
     def test_add_events_to_catalogue_via_method(self):
         c = create_catalogue("Catalogue Name", "Patrick")
         add_events_to_catalogue(c, self.events)
 
-        event_list = get_events(c)
+        event_list = get_events(c)[0]
         self.assertListEqual(self.events, event_list)
 
         remove_events_from_catalogue(c, self.events[0])
-        event_list = get_events(c)
+        event_list = get_events(c)[0]
         self.assertListEqual(event_list, self.events[1:])
 
     def test_add_event_multiple_times_to_catalogue(self):
@@ -202,25 +202,25 @@ class TestDynamiccreate_catalogue(unittest.TestCase):
         dcat = create_catalogue("Dynamic Catalogue 'author=Patrick'", "Patrick",
                                 predicate=Comparison("==", Field("author"), "Patrick"))
 
-        events = get_events(dcat)
+        events = get_events(dcat)[0]
         self.assertListEqual(events, self.events[:3])
 
         event = create_event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=3), "Alexis")
         add_events_to_catalogue(dcat, event)
 
-        events = get_events(dcat)
+        events = get_events(dcat)[0]
         self.assertListEqual(events, self.events[0:3] + [event])
 
         remove_events_from_catalogue(dcat, event)
 
-        events = get_events(dcat)
+        events = get_events(dcat)[0]
         self.assertListEqual(events, self.events[0:3])
 
         # impossible to remove events which are queried with filters
         with self.assertRaises(ValueError):
             remove_events_from_catalogue(dcat, self.events)
 
-        events = get_events(dcat)
+        events = get_events(dcat)[0]
         self.assertListEqual(events, self.events[0:3])
 
         catalogues = get_catalogues()
@@ -232,8 +232,8 @@ class TestDynamiccreate_catalogue(unittest.TestCase):
         dc = create_catalogue("Dynamic Catalogue", "Patrick",
                               predicate=Comparison("==", Field("author"), "Patrick"))
 
-        self.assertListEqual(get_events(dc), self.events[:3])
+        self.assertListEqual(get_events(dc)[0], self.events[:3])
 
         dc.predicate = Comparison("==", Field("author"), "Alexis")
 
-        self.assertListEqual(get_events(dc), self.events[3:])
+        self.assertListEqual(get_events(dc)[0], self.events[3:])
