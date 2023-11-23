@@ -450,8 +450,8 @@ class TestImportExportJSON(unittest.TestCase):
             return sorted(l, key=lambda x: x.uuid)
 
         assert s(events1 + shared_events + events2) == s(get_events())
-        assert s(events1 + shared_events) == s(get_events(catalogue1))
-        assert s(events2 + shared_events) == s(get_events(catalogue2))
+        assert s(events1 + shared_events) == s(get_events(catalogue1)[0])
+        assert s(events2 + shared_events) == s(get_events(catalogue2)[0])
 
         assert s([catalogue1, catalogue2]) == s(get_catalogues())
 
@@ -474,8 +474,8 @@ class TestImportExportJSON(unittest.TestCase):
             return sorted(l, key=lambda x: x.uuid)
 
         assert s(events1 + shared_events + events2) == s(get_events())
-        assert s(events1 + shared_events) == s(get_events(catalogue1))
-        assert s(events2 + shared_events) == s(get_events(catalogue2))
+        assert s(events1 + shared_events) == s(get_events(catalogue1)[0])
+        assert s(events2 + shared_events) == s(get_events(catalogue2)[0])
 
         assert s([catalogue1, catalogue2]) == s(get_catalogues())
 
@@ -488,14 +488,14 @@ class TestImportExportJSON(unittest.TestCase):
 
         assert get_catalogues() == [c]
         assert get_events() == events
-        assert get_events(c) == [events[1]]
+        assert get_events(c)[0] == [events[1]]
 
         export_blob = export_json(c)
         import_json(export_blob)
 
         assert get_catalogues() == [c]
         assert get_events() == events
-        assert get_events(c) == [events[1]]
+        assert get_events(c)[0] == [events[1]]
 
 
 class TestTrash(unittest.TestCase):
@@ -539,7 +539,7 @@ class TestTrash(unittest.TestCase):
         catalogue = create_catalogue("TestTrashEventCatalogue", "Patrick", events=events)
 
         events[0].remove()
-        events_after_remove = get_events(catalogue)
+        events_after_remove = get_events(catalogue)[0]
         self.assertListEqual(events_after_remove, events[1:])
 
     def test_event_is_removed_and_cannot_be_retrieved_via_predicate(self):
@@ -556,7 +556,7 @@ class TestTrash(unittest.TestCase):
                                      events=events[3:])
 
         events[0].remove()
-        events_after_remove = get_events(catalogue)
+        events_after_remove = get_events(catalogue)[0]
         self.assertListEqual(events_after_remove, events[1:])
 
     def test_catalogue_is_removed_and_cannot_be_retrieved_via_get_catalogue(self):
@@ -590,7 +590,7 @@ class TestTrash(unittest.TestCase):
         add_events_to_catalogue(catalogue, events)
 
         events[0].remove()
-        events_after_remove = get_events(catalogue)
+        events_after_remove = get_events(catalogue)[0]
         self.assertListEqual(events_after_remove, events[1:])
 
         events[0].restore()
@@ -651,8 +651,8 @@ class TestTrash(unittest.TestCase):
         ev[0].remove()
         ev[1].remove()
 
-        self.assertListEqual(get_events(cat), ev[2:3])
-        self.assertListEqual(get_events(cat, removed_items=True), ev[0:2])
+        self.assertListEqual(get_events(cat)[0], ev[2:3])
+        self.assertListEqual(get_events(cat, removed_items=True)[0], ev[0:2])
 
     def test_removing_catalogue_does_not_remove_events(self):
         cat, = self.create_catalogues_for_test(1)
@@ -664,8 +664,8 @@ class TestTrash(unittest.TestCase):
 
         self.assertTrue(cat.is_removed())
 
-        self.assertListEqual(get_events(cat), ev)
-        self.assertListEqual(get_events(cat, removed_items=True), [])
+        self.assertListEqual(get_events(cat)[0], ev)
+        self.assertListEqual(get_events(cat, removed_items=True)[0], [])
 
     def test_remove_catalogue_permanently(self):
         cat, = self.create_catalogues_for_test(1)
@@ -700,7 +700,7 @@ class TestTrash(unittest.TestCase):
 
         add_events_to_catalogue(cat, ev)
 
-        self.assertListEqual(get_events(cat), ev)
+        self.assertListEqual(get_events(cat)[0], ev)
 
         cat.remove(permanently=True)
 
@@ -723,12 +723,12 @@ class TestTrash(unittest.TestCase):
 
         add_events_to_catalogue(cat, ev)
 
-        self.assertListEqual(get_events(cat), ev)
+        self.assertListEqual(get_events(cat)[0], ev)
         self.assertListEqual(get_events(), ev)
 
         ev[0].remove(permanently=True)
 
-        self.assertListEqual(get_events(cat), ev[1:])
+        self.assertListEqual(get_events(cat)[0], ev[1:])
         self.assertListEqual(get_events(), ev[1:])
 
     def test_get_only_filtered_events_of_dynamic_catalogue(self):
@@ -737,7 +737,7 @@ class TestTrash(unittest.TestCase):
                                      predicate=Comparison('==', Field('author'), 'Patrick'),
                                      events=events[3:])
 
-        filtered_only = get_events(catalogue, filtered_only=True)
+        filtered_only = get_events(catalogue, filtered_only=True)[0]
         self.assertListEqual(filtered_only, events[:3])
 
 
@@ -876,8 +876,8 @@ class TestImportExportVOTable(unittest.TestCase):
                 return sorted(l, key=lambda x: x.uuid)
 
             assert s(events1 + shared_events + events2) == s(get_events())
-            assert s(events1 + shared_events) == s(get_events(catalogue1))
-            assert s(events2 + shared_events) == s(get_events(catalogue2))
+            assert s(events1 + shared_events) == s(get_events(catalogue1)[0])
+            assert s(events2 + shared_events) == s(get_events(catalogue2)[0])
 
             assert len(get_catalogues()) == 2
 
@@ -902,8 +902,8 @@ class TestImportExportVOTable(unittest.TestCase):
                 return sorted(l, key=lambda x: x.uuid)
 
             assert s(events1 + shared_events + events2) == s(get_events())
-            assert s(events1 + shared_events) == s(get_events(catalogue1))
-            assert s(events2 + shared_events) == s(get_events(catalogue2))
+            assert s(events1 + shared_events) == s(get_events(catalogue1)[0])
+            assert s(events2 + shared_events) == s(get_events(catalogue2)[0])
 
             assert len(get_catalogues()) == 4
 
@@ -916,7 +916,7 @@ class TestImportExportVOTable(unittest.TestCase):
 
         assert get_catalogues() == [c]
         assert get_events() == events
-        assert get_events(c) == [events[1]]
+        assert get_events(c)[0] == [events[1]]
 
         with tempfile.NamedTemporaryFile('w+') as f:
             export_vot = export_votable(c)
@@ -926,7 +926,7 @@ class TestImportExportVOTable(unittest.TestCase):
 
         assert get_catalogues() == [c, d[0]]
         assert get_events() == events
-        assert get_events(c) == [events[1]]
+        assert get_events(c)[0] == [events[1]]
 
     def test_raise_when_importing_votable_with_unhandled_field_type(self):
         with self.assertRaises(ValueError):
@@ -942,7 +942,7 @@ class TestImportExportVOTable(unittest.TestCase):
         assert get_catalogues() == [catalogue]
         assert get_catalogues()[0].name == 'Dst_Li2020'
         assert len(get_events()) == 95
-        assert len(get_events(catalogue)) == 95
+        assert len(get_events(catalogue)[0]) == 95
         assert len(get_events(Comparison('==', Field('author'), 'vincent.genot@irap.omp.eu'))) == 95
 
     def test_raise_if_attributes_are_missing(self):

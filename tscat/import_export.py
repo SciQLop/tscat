@@ -81,7 +81,10 @@ def __canonicalize_from_dict(data: Dict[str, Any]) -> __CanonicalizedTSCatData:
     for catalogue in data['catalogues'][:]:
         check_catalogue = get_catalogues(UUID(catalogue['uuid']))
         if len(check_catalogue) != 0:
-            events_uuids = [event.uuid for event in get_events(check_catalogue[0])]
+
+            e_tuple = get_events(check_catalogue[0])
+            assert isinstance(e_tuple, tuple)
+            events_uuids = [event.uuid for event in e_tuple[0]]
             catalogue_dump = check_catalogue[0].dump()
 
             # convert the existing catalogue so that it can be compared with the to-be-imported one
@@ -111,9 +114,15 @@ def __import_canonicalized_dict(data: __CanonicalizedTSCatData) -> List[_Catalog
             event_of_uuid[event['uuid']] = s.create_event(**event)
 
         for catalogue_dict in data.catalogues:
-            catalogue_events = [event_of_uuid[uuid] if uuid in event_of_uuid
-                                else get_events(UUID(uuid))[0]
-                                for uuid in catalogue_dict['events']]
+            catalogue_events: List[_Event] = []
+            for uuid in catalogue_dict['events']:
+                if uuid in event_of_uuid:
+                    catalogue_events.append(event_of_uuid[uuid])
+                else:
+                    e_list = get_events(UUID(uuid))
+                    assert isinstance(e_list, list)
+                    catalogue_events.append(e_list[0])
+
             del catalogue_dict['events']
 
             catalogue = s.create_catalogue(**catalogue_dict)
@@ -137,7 +146,9 @@ def export_json(catalogues: Union[List[_Catalogue], _Catalogue]) -> str:
 
     for catalogue in _listify(catalogues):
         with __CanonicalizedTSCatData.DumpCatalogue(catalogue, data) as catalogue_data:
-            catalogue_data.add_events(get_events(catalogue))
+            e_tuple = get_events(catalogue)
+            assert isinstance(e_tuple, tuple)
+            catalogue_data.add_events(e_tuple[0])
 
     return json.dumps(data.to_dict(), cls=__LocalEncoder)
 
@@ -252,11 +263,12 @@ def export_votable(catalogues: Union[List[_Catalogue], _Catalogue]) -> VOTableFi
             ('rating', __vo_table_field_from('rating')),
         ]
 
-        events = get_events(catalogue)
+        e_tuple = get_events(catalogue)
+        assert isinstance(e_tuple, tuple)
         # set of all attributes of any event
-        var_attrs = set(itertools.chain.from_iterable(event.variable_attributes().keys() for event in events))
+        var_attrs = set(itertools.chain.from_iterable(event.variable_attributes().keys() for event in e_tuple[0]))
         # set of all attributes of all events
-        var_attrs_intersect = set.intersection(*[set(event.variable_attributes().keys()) for event in events])
+        var_attrs_intersect = set.intersection(*[set(event.variable_attributes().keys()) for event in e_tuple[0]])
 
         # for the moment raise an error if there are attributes not present in every event
         if var_attrs != var_attrs_intersect:
@@ -265,7 +277,7 @@ def export_votable(catalogues: Union[List[_Catalogue], _Catalogue]) -> VOTableFi
 
         for attr in sorted(var_attrs):
             # now check that the value-type of all values of the to be exported attributes is identical
-            attrs_value_types = list(set(type(event.__dict__[attr]) for event in events))
+            attrs_value_types = list(set(type(event.__dict__[attr]) for event in e_tuple[0]))
             if len(attrs_value_types) != 1:
                 raise ValueError('Export: VOTable: not all value-types are ' +
                                  f'identical for all events for attribute {attr}')
@@ -274,8 +286,8 @@ def export_votable(catalogues: Union[List[_Catalogue], _Catalogue]) -> VOTableFi
 
         table.fields.extend([vtf.make_vot_field(votable, name) for name, vtf in attributes])
 
-        table.create_arrays(len(events))
-        for i, event in enumerate(events):
+        table.create_arrays(len(e_tuple[0]))
+        for i, event in enumerate(e_tuple[0]):
             c = tuple(vtf.convert_vot(event.__dict__[k]) if k in event.__dict__ else '' for k, vtf in attributes)
             table.array[i] = c
 

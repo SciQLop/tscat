@@ -8,7 +8,7 @@ from .base import create_event, create_catalogue, \
     add_events_to_catalogue, remove_events_from_catalogue, \
     save, discard, has_unsaved_changes, \
     get_catalogues, get_events, \
-    _Catalogue, _Event, Session
+    _Catalogue, _Event, Session, EventQueryInformation
 
 from .import_export import export_votable, export_json, \
     import_json, import_votable, \

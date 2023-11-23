@@ -51,7 +51,7 @@ class Event(Base):
         self.attributes = attributes
 
     def __repr__(self):  # pragma: no cover
-        return f'Event({self.id}: {self.start}, {self.stop}, {self.author}), {self.removed}, meta=' + self._proxied.__repr__()
+        return f'Event({self.id}: {self.start}, {self.stop}, {self.author}), {self.removed}, meta=' + self.attributes.__repr__()
 
 
 class Catalogue(Base):
@@ -84,4 +84,4 @@ class Catalogue(Base):
         self.attributes = attributes
 
     def __repr__(self):  # pragma: no cover
-        return f'Catalogue({self.id}: {self.name}, {self.author}, {self.removed}), attrs=' + self._proxied.__repr__()
+        return f'Catalogue({self.id}: {self.name}, {self.author}, {self.removed}), attrs=' + self.attributes.__repr__()
