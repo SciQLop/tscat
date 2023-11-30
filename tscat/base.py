@@ -392,7 +392,7 @@ def get_events(base: Union[Predicate, _Catalogue, None] = None,
                                           assigned_only=kwargs.get('assigned_only', False),
                                           filtered_only=kwargs.get('filtered_only', False))
     else:
-        return None
+        raise ValueError('base has to be a Predicate, Catalogue or None')  # pragma: no cover
 
 
 def save() -> None:

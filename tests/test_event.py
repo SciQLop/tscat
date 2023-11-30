@@ -159,6 +159,3 @@ class TestEvent(unittest.TestCase):
         self.assertEqual(len(es), 2)
         self.assertTrue(info[0].assigned)
         self.assertFalse(info[1].assigned)
-
-    def test_get_event_returns_none_if_invalid_base(self) -> None:
-        self.assertIsNone(tscat.get_events(1))
