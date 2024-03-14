@@ -17,16 +17,37 @@ dynamic catalogues (filter-based).
 * Free software: GNU General Public License v3
 * Documentation: https://tscat.readthedocs.io.
 
+Alembic integration for database migrations
+-------------------------------------------
 
-Features
---------
+This library uses alembic for database migrations. Alembic was added
+later on when the database model was already created and used in production.
 
-* TODO
+The goal is to use alembic to create migration scripts that can be used to
+migrate production databases to the current state of the model after an
+upgrade of tscat to a newer version by the user.
 
-Credits
--------
+Initial steps that were taken starting from the 0.1.0-release:
 
-This package was created with Cookiecutter_ and the `audreyr/cookiecutter-pypackage`_ project template.
+1. Install alembic with ``pip install alembic``
+2. Go to ``tscat/orm_sqlalchemy``
+2. Create an alembic environment with ``alembic init migrations``. This creates
+   a directory called ``migrations``.
+3. Edit the ``alembic.ini`` file to point to the database URL.
+   As in development we use a sqlite-database in its production location, we need to
+   resolve: e.g. with ``python -c "from appdirs import user_data_dir; print(user_data_dir('tscat'))"``
+   The URL is then the output of the above command with ``backend.sqlite`` appended.
+   As an example: (see the two extra forward slashes after sqlite://)
 
-.. _Cookiecutter: https://github.com/audreyr/cookiecutter
-.. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage
+     ``sqlalchemy.url = sqlite:////home/pboettch/.local/share/tscat/backend.sqlite``
+
+4. Edit the ``env.py`` file to point to the database model.
+5. Remove the database file and create a new one corresponding to the orm of this tscat-version
+6. Create the first migration with ``alembic revision --autogenerate -m "Initial migration"``.
+7. Edit the create migration-script and empty out upgrade and downgrade functions. As we add alembic to
+   an existing production database we do not want to change the database, but only add the migration.
+8. Run the migration with ``alembic upgrade head``. Now alembic should be in sync with the current
+   database model and later migrations are possible.
+
+
+
