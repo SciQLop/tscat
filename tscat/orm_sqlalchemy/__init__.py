@@ -14,6 +14,7 @@ from typing_extensions import Literal
 
 from sqlalchemy import create_engine, and_, or_, not_, event, func, cast, String
 from sqlalchemy.orm import Session, Query
+from sqlalchemy.pool.base import _ConnectionFairy
 
 from operator import __eq__, __ne__, __ge__, __gt__, __le__, __lt__
 
@@ -126,19 +127,38 @@ class PredicateVisitor:
 
 
 class Backend:
-    def __init__(self, testing=False):
-        if testing:
-            url = 'sqlite://'  # memory database
+    def __init__(self, testing: Union[bool, str] = False):
+        if testing is True:
+            sqlite_filename = ""
+        elif isinstance(testing, str):
+            sqlite_filename = 'file:memdb1?mode=memory&cache=shared'  # memory database
+
         else:  # pragma: no cover
             db_file_path = user_data_dir('tscat')
             if not os.path.exists(db_file_path):
                 os.makedirs(db_file_path)
-            url = f'sqlite:///{db_file_path}/backend.sqlite'
+            sqlite_filename = f'{db_file_path}/backend.sqlite'
 
         # self.engine = create_engine(url, echo=True,
-        self.engine = create_engine(url,
+        self.engine = create_engine(f'sqlite:///{sqlite_filename}',
                                     json_serializer=_serialize_json,
                                     json_deserializer=_deserialize_json)
+
+        # copy testing database to memory
+        if isinstance(testing, str):
+            import sqlite3
+            source = sqlite3.connect(testing)
+            assert isinstance(self.engine.raw_connection(), _ConnectionFairy)
+            assert isinstance(self.engine.raw_connection().connection, sqlite3.Connection)  # type: ignore
+            source.backup(self.engine.raw_connection().connection, pages=-1)  # type: ignore
+
+        # tempt alembic migration of the database
+        from alembic.config import Config
+        from alembic import command
+        alembic_cfg = Config(os.path.join(os.path.dirname(__file__), 'alembic.ini'))
+        alembic_cfg.set_main_option("script_location", os.path.join(os.path.dirname(__file__), 'migrations'))
+        alembic_cfg.set_main_option("sqlalchemy.url", f'sqlite:///{sqlite_filename}')
+        command.upgrade(alembic_cfg, "head")
 
         # use BEGIN EXCLUSIVE to lock database exclusively to one process
         @event.listens_for(self.engine, "begin")
@@ -148,6 +168,10 @@ class Backend:
         orm.Base.metadata.create_all(self.engine)
 
         self.session = Session(bind=self.engine, autoflush=True)
+
+    def close(self):
+        self.session.close()
+        self.engine.dispose()
 
     def _specialiced_serialization(self, key, value):
         if key == "predicate":

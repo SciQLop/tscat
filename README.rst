@@ -27,13 +27,13 @@ The goal is to use alembic to create migration scripts that can be used to
 migrate production databases to the current state of the model after an
 upgrade of tscat to a newer version by the user.
 
-Initial steps that were taken starting from the 0.1.0-release:
+Initial steps that were taken starting from the 0.2.0-release (tag ``v0.2.0``):
 
 1. Install alembic with ``pip install alembic``
 2. Go to ``tscat/orm_sqlalchemy``
-2. Create an alembic environment with ``alembic init migrations``. This creates
+3. Create an alembic environment with ``alembic init migrations``. This creates
    a directory called ``migrations``.
-3. Edit the ``alembic.ini`` file to point to the database URL.
+4. Edit the ``alembic.ini`` file to point to the database URL.
    As in development we use a sqlite-database in its production location, we need to
    resolve: e.g. with ``python -c "from appdirs import user_data_dir; print(user_data_dir('tscat'))"``
    The URL is then the output of the above command with ``backend.sqlite`` appended.
@@ -41,13 +41,15 @@ Initial steps that were taken starting from the 0.1.0-release:
 
      ``sqlalchemy.url = sqlite:////home/pboettch/.local/share/tscat/backend.sqlite``
 
-4. Edit the ``env.py`` file to point to the database model.
-5. Remove the database file and create a new one corresponding to the orm of this tscat-version
-6. Create the first migration with ``alembic revision --autogenerate -m "Initial migration"``.
-7. Edit the create migration-script and empty out upgrade and downgrade functions. As we add alembic to
+5. Edit the ``env.py`` file to point to the database model.
+6. Remove the database file and create a new one corresponding to the orm of this tscat-version
+7. Create the first migration with ``alembic revision --autogenerate -m "Initial migration"``.
+8. Edit the create migration-script and empty out upgrade and downgrade functions. As we add alembic to
    an existing production database we do not want to change the database, but only add the migration.
-8. Run the migration with ``alembic upgrade head``. Now alembic should be in sync with the current
+9. Run the migration with ``alembic upgrade head``. Now alembic should be in sync with the current
    database model and later migrations are possible.
+
+Steps 7 and 9 are to be repeated when the database model changes.
 
 
 
