@@ -22,5 +22,5 @@ def upgrade() -> None:
     op.add_column('events', sa.Column('rating', sa.Integer(), nullable=True))
 
 
-def downgrade() -> None:
+def downgrade() -> None:  # pragma: no cover
     raise NotImplementedError("Downgrade is not supported.")
