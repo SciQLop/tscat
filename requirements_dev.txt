@@ -15,6 +15,7 @@ appdirs
 typing_extensions>=3.7
 SQLAlchemy_Utils>=0.37.8
 orjson
+alembic
 appdirs-stubs
 mypy
 pytest-timeout

@@ -11,6 +11,7 @@ with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
 requirements = [
+    "alembic",
     "typing_extensions>=3.7",
     'sqlalchemy[mypy]<2',
     "appdirs>=1.4.4 ",
