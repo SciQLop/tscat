@@ -10,7 +10,6 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 
-
 # revision identifiers, used by Alembic.
 revision: str = '9a655086fb51'
 down_revision: Union[str, None] = '0c057a8951ba'
@@ -19,7 +18,11 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column('events', sa.Column('rating', sa.Integer(), nullable=True))
+    try:
+        op.add_column('events', sa.Column('rating', sa.Integer(), nullable=True))
+    except Exception as e:  # pragma: no cover
+        if "duplicate column name: rating" not in str(e):
+            raise e
 
 
 def downgrade() -> None:  # pragma: no cover
