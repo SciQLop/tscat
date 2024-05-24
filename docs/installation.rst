@@ -38,13 +38,13 @@ Or download the `tarball`_:
 
 .. code-block:: console
 
-    $ curl -OJL https://github.com/SciQLop/tscat/tarball/master
+    $ curl -OJL https://github.com/SciQLop/tscat/tarball/main
 
 Once you have a copy of the source, you can install it with:
 
 .. code-block:: console
 
-    $ python setup.py install
+    $ python -m pip install .
 
 
 .. _Github repo: https://github.com/SciQLop/tscat

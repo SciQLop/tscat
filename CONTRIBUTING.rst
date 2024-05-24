@@ -68,7 +68,7 @@ Ready to contribute? Here's how to set up `tscat` for local development.
 
     $ mkvirtualenv tscat
     $ cd tscat/
-    $ python setup.py develop
+    $ python -m pip install -e .[test]
 
 4. Create a branch for local development::
 
@@ -80,7 +80,7 @@ Ready to contribute? Here's how to set up `tscat` for local development.
    tests, including testing other Python versions with tox::
 
     $ flake8 tscat tests
-    $ python setup.py test or pytest
+    $ pytest
     $ tox
 
    To get flake8 and tox, just pip install them into your virtualenv.
