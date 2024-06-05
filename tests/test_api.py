@@ -9,7 +9,7 @@ import tscat.orm_sqlalchemy
 from ddt import ddt, data, unpack  # type: ignore
 from tscat import create_event, create_catalogue, add_events_to_catalogue, get_events, \
     discard, save, has_unsaved_changes, export_json, import_json, get_catalogues, \
-    import_votable, export_votable
+    import_votable_file, import_votable_str, export_votable
 from tscat.filtering import Comparison, Field
 
 
@@ -758,8 +758,8 @@ class TestImportExportVOTable(unittest.TestCase):
 
                 self.assertEqual(len(get_events()), 0)
                 self.assertEqual(len(get_catalogues()), 0)
-
-                import_votable(f.name)
+                f.seek(0)
+                import_votable_str(f.read(), os.path.basename(f.name))
 
                 self.assertListEqual(events, get_events())
 
@@ -780,7 +780,7 @@ class TestImportExportVOTable(unittest.TestCase):
 
             discard()
 
-            import_votable(f.name)
+            import_votable_file(f.name)
 
             self.assertListEqual(events, get_events())
 
@@ -806,7 +806,7 @@ class TestImportExportVOTable(unittest.TestCase):
                 export_vot = export_votable(catalogue)
                 export_vot.to_xml(f)
 
-                import_votable(f.name)
+                import_votable_file(f.name)
 
                 assert events == get_events()
                 assert len(get_catalogues()) == i + 2
@@ -821,7 +821,7 @@ class TestImportExportVOTable(unittest.TestCase):
 
             catalogue.remove(permanently=True)
 
-            import_votable(f.name)
+            import_votable_file(f.name)
 
         assert events == get_events()
         assert len(get_catalogues()) == 1
@@ -837,7 +837,7 @@ class TestImportExportVOTable(unittest.TestCase):
             events[0].author = "Someone Else"
 
             with self.assertRaises(ValueError):
-                import_votable(f.name)
+                import_votable_file(f.name)
 
     def test_votable_no_exception_raised_reimporting_catalogue(self):
         events = [generate_event() for _ in range(2)]
@@ -851,7 +851,7 @@ class TestImportExportVOTable(unittest.TestCase):
 
             add_events_to_catalogue(catalogue, event)
 
-            import_votable(f.name)
+            import_votable_file(f.name)
 
     def test_export_import_multiple_catalogues_with_shared_and_individual_events(self):
         shared_events = [generate_event() for _ in range(2)]
@@ -870,7 +870,7 @@ class TestImportExportVOTable(unittest.TestCase):
 
             discard()
 
-            catalogue1, catalogue2 = import_votable(f.name)
+            catalogue1, catalogue2 = import_votable_file(f.name)
 
             def s(l):
                 return sorted(l, key=lambda x: x.uuid)
@@ -896,7 +896,7 @@ class TestImportExportVOTable(unittest.TestCase):
             export_vot = export_votable([catalogue1, catalogue2])
             export_vot.to_xml(f)
 
-            catalogue1, catalogue2 = import_votable(f.name)
+            catalogue1, catalogue2 = import_votable_file(f.name)
 
             def s(l):
                 return sorted(l, key=lambda x: x.uuid)
@@ -922,7 +922,7 @@ class TestImportExportVOTable(unittest.TestCase):
             export_vot = export_votable(c)
             export_vot.to_xml(f)
 
-            d = import_votable(f.name)
+            d = import_votable_file(f.name)
 
         assert get_catalogues() == [c, d[0]]
         assert get_events() == events
@@ -930,14 +930,14 @@ class TestImportExportVOTable(unittest.TestCase):
 
     def test_raise_when_importing_votable_with_unhandled_field_type(self):
         with self.assertRaises(ValueError):
-            import_votable('tests/invalid-type-votable.xml')
+            import_votable_file('tests/invalid-type-votable.xml')
 
     def test_raise_when_missing_required_field(self):
         with self.assertRaises(ValueError):
-            import_votable('tests/missing-required-field-votable.xml')
+            import_votable_file('tests/missing-required-field-votable.xml')
 
     def test_import_amda_exported_table(self):
-        catalogue, = import_votable('tests/Dst_Li2020.xml')
+        catalogue, = import_votable_file('tests/Dst_Li2020.xml')
 
         assert get_catalogues() == [catalogue]
         assert get_catalogues()[0].name == 'Dst_Li2020'
