@@ -294,7 +294,7 @@ def export_votable(catalogues: Union[List[_Catalogue], _Catalogue]) -> VOTableFi
     return votable
 
 
-def import_votable(filename: str) -> List[_Catalogue]:
+def __canonicalize_votable_import(filename: str) -> __CanonicalizedTSCatData:
     votable = parse(filename)
 
     author = 'VOTable Import'
@@ -371,5 +371,9 @@ def import_votable(filename: str) -> List[_Catalogue]:
 
         ddict['catalogues'].append(catalogue)
 
-    data = __canonicalize_from_dict(ddict)
-    return __import_canonicalized_dict(data)
+    return __canonicalize_from_dict(ddict)
+
+
+def import_votable(filename: str) -> List[_Catalogue]:
+    dict = __canonicalize_votable_import(filename)
+    return __import_canonicalized_dict(dict)
