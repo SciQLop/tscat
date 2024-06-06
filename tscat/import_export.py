@@ -304,9 +304,9 @@ def export_votable(catalogues: Union[List[_Catalogue], _Catalogue]) -> VOTableFi
 
 
 def export_votable_str(catalogues: Union[List[_Catalogue], _Catalogue]) -> str:
-    content = StringIO()
+    content = BytesIO()
     export_votable(catalogues).to_xml(content)
-    return content.getvalue()
+    return content.getvalue().decode()
 
 
 def __canonicalize_votable_import(votable: VOTableFile, table_name: Optional[str] = None) -> __CanonicalizedTSCatData:
