@@ -10,7 +10,8 @@ from .base import create_event, create_catalogue, \
     get_catalogues, get_events, \
     _Catalogue, _Event, Session, EventQueryInformation
 
-from .import_export import export_votable, export_json, \
-    import_json, import_votable, \
+from .import_export import export_votable, export_votable_str, export_json, \
+    import_json, import_json_file, import_votable, import_votable_file, import_votable_str, \
+    __canonicalize_votable_import as canonicalize_votable_import, \
     __canonicalize_json_import as canonicalize_json_import, \
     __import_canonicalized_dict as import_canonicalized_dict

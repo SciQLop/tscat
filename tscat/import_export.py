@@ -3,8 +3,11 @@ import datetime as dt
 import itertools
 import json
 import os
+from io import StringIO ,BytesIO
 from typing import Dict, List, Union, Tuple, Any, Optional, Type, Callable
 from uuid import uuid4
+
+from sqlalchemy_utils import table_name
 
 from .base import get_catalogues, get_events, _Catalogue, _Event, backend, Session, _listify
 from .filtering import UUID
@@ -163,6 +166,12 @@ def import_json(jsons: str) -> List[_Catalogue]:
     return __import_canonicalized_dict(import_dict)
 
 
+def import_json_file(filename: str) -> List[_Catalogue]:
+    with open(filename, 'r') as file:
+        return import_json(file.read())
+    raise FileNotFoundError(f'File {filename} not found')
+
+
 ### VOTable (AMDA compatible)
 
 from astropy.io.votable import parse
@@ -294,11 +303,15 @@ def export_votable(catalogues: Union[List[_Catalogue], _Catalogue]) -> VOTableFi
     return votable
 
 
-def import_votable(filename: str) -> List[_Catalogue]:
-    votable = parse(filename)
+def export_votable_str(catalogues: Union[List[_Catalogue], _Catalogue]) -> str:
+    content = BytesIO()
+    export_votable(catalogues).to_xml(content)
+    return content.getvalue().decode()
 
+
+def __canonicalize_votable_import(votable: VOTableFile, table_name: Optional[str] = None) -> __CanonicalizedTSCatData:
     author = 'VOTable Import'
-    table_name = os.path.basename(filename)
+    table_name = table_name or f'Imported Catalogue from {dt.datetime.now()}'
 
     if votable.description:
         for line in str(votable.description).split(';'):
@@ -371,5 +384,22 @@ def import_votable(filename: str) -> List[_Catalogue]:
 
         ddict['catalogues'].append(catalogue)
 
-    data = __canonicalize_from_dict(ddict)
-    return __import_canonicalized_dict(data)
+    return __canonicalize_from_dict(ddict)
+
+
+def import_votable(votable: VOTableFile, table_name: Optional[str] = None) -> List[_Catalogue]:
+    dict = __canonicalize_votable_import(votable, table_name=table_name)
+    return __import_canonicalized_dict(dict)
+
+
+def import_votable_file(filename: str, table_name: Optional[str] = None) -> List[_Catalogue]:
+    if os.path.exists(filename):
+        table_name = table_name or os.path.basename(filename)
+        dict = __canonicalize_votable_import(parse(filename), table_name=table_name)
+        return __import_canonicalized_dict(dict)
+    raise FileNotFoundError(f'File {filename} not found')
+
+
+def import_votable_str(xml_content: str, table_name: Optional[str] = None) -> List[_Catalogue]:
+    dict = __canonicalize_votable_import(parse(BytesIO(xml_content.encode())), table_name=table_name)
+    return __import_canonicalized_dict(dict)
