@@ -1,4 +1,9 @@
+import os.path
 from logging.config import fileConfig
+from logging import getLogger
+from datetime import datetime
+from shutil import copyfile
+from typing import Optional
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
@@ -17,12 +22,23 @@ if config.config_file_name is not None:
 # add your model's MetaData object here
 # for 'autogenerate' support
 from tscat.orm_sqlalchemy.orm import Base
+
 target_metadata = Base.metadata
+
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
+
+def _backup_database(db_url: Optional[str] = None):
+    if db_url is not None:
+        path = db_url.replace('sqlite://', '')
+        if os.path.exists(path):
+            now = datetime.now().strftime('%Y%m%dT%H%M%S')
+            backup_path = path.replace('.sqlite', f'-{now}.sqlite.backup')
+            getLogger('alembic').info(f'Backing up database to {backup_path}')
+            copyfile(path, backup_path)
 
 
 def run_migrations_offline() -> None:  # pragma: no cover
@@ -44,7 +60,7 @@ def run_migrations_offline() -> None:  # pragma: no cover
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
     )
-
+    _backup_database(url)
     with context.begin_transaction():
         context.run_migrations()
 
@@ -66,7 +82,7 @@ def run_migrations_online() -> None:
         context.configure(
             connection=connection, target_metadata=target_metadata
         )
-
+        _backup_database(config.get_main_option("sqlalchemy.url"))
         with context.begin_transaction():
             context.run_migrations()
 
