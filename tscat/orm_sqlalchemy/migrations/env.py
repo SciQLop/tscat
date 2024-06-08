@@ -34,7 +34,7 @@ target_metadata = Base.metadata
 def _backup_database(db_url: Optional[str] = None):
     if db_url is not None:
         path = db_url.replace('sqlite://', '')
-        if os.path.exists(path):
+        if os.path.exists(path) and os.path.isfile(path):
             now = datetime.now().strftime('%Y%m%dT%H%M%S')
             backup_path = path.replace('.sqlite', f'-{now}.sqlite.backup')
             getLogger('alembic').info(f'Backing up database to {backup_path}')
@@ -60,7 +60,8 @@ def run_migrations_offline() -> None:  # pragma: no cover
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
     )
-    _backup_database(url)
+    if context.get_head_revision() != context.get_context().get_current_revision():
+        _backup_database(url)
     with context.begin_transaction():
         context.run_migrations()
 
@@ -82,7 +83,8 @@ def run_migrations_online() -> None:
         context.configure(
             connection=connection, target_metadata=target_metadata
         )
-        _backup_database(config.get_main_option("sqlalchemy.url"))
+        if context.get_head_revision() != context.get_context().get_current_revision():
+            _backup_database(config.get_main_option("sqlalchemy.url"))
         with context.begin_transaction():
             context.run_migrations()
 
