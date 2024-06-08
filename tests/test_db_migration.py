@@ -27,12 +27,3 @@ class DBMigration(unittest.TestCase):
         self.assertEqual(e.rating, 3)
 
         self.assertEqual(len(tscat.get_events()), 2)
-
-
-class DBMigrationBackup(unittest.TestCase):
-
-    def setUp(self):
-        if tscat.base._backend:
-            tscat.base._backend.close()
-        test_db_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'migration-db-test.sqlite')
-        tscat.base._backend = tscat.orm_sqlalchemy.Backend(testing=test_db_file)

@@ -128,17 +128,14 @@ class PredicateVisitor:
             return self._visit_in_catalogue(pred)
 
 
-
 class Backend:
     def __init__(self, testing: Union[bool, str] = False):
+        in_memory = False
         if testing is True:
-            import sqlite3
-            source = sqlite3.connect("")
-            assert isinstance(self.engine.raw_connection(), _ConnectionFairy)
-            assert isinstance(self.engine.raw_connection().connection, sqlite3.Connection)  # type: ignore
-            source.backup(self.engine.raw_connection().connection, pages=-1)  # type: ignore
+            sqlite_filename = ""
+            in_memory = True
         elif isinstance(testing, str):
-            sqlite_filename = self._coppy_to_tmp(testing)
+            sqlite_filename = self._copy_to_tmp(testing)
         else:  # pragma: no cover
             db_file_path = user_data_dir('tscat')
             if not os.path.exists(db_file_path):
@@ -150,6 +147,12 @@ class Backend:
                                     json_serializer=_serialize_json,
                                     json_deserializer=_deserialize_json)
 
+        if in_memory:
+            import sqlite3
+            source = sqlite3.connect("")
+            assert isinstance(self.engine.raw_connection(), _ConnectionFairy)
+            assert isinstance(self.engine.raw_connection().connection, sqlite3.Connection)  # type: ignore
+            source.backup(self.engine.raw_connection().connection, pages=-1)  # type: ignore
 
         # tempt alembic migration of the database
         from alembic.config import Config
@@ -168,7 +171,7 @@ class Backend:
 
         self.session = Session(bind=self.engine, autoflush=True)
 
-    def _coppy_to_tmp(self, source_file)->str:
+    def _copy_to_tmp(self, source_file) -> str:
         # temp dir lives as long as the object
         self._tmp_dir = mkdtemp()
         destination_file = os.path.join(self._tmp_dir, os.path.basename(source_file))
