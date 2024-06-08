@@ -2,7 +2,7 @@
 
 __author__ = """Patrick Boettcher"""
 __email__ = 'p@yai.se'
-__version__ = '0.4.0'
+__version__ = '0.4.1'
 
 from .base import create_event, create_catalogue, \
     add_events_to_catalogue, remove_events_from_catalogue, \

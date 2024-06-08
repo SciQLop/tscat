@@ -4,7 +4,7 @@ requires = ["flit_core"]
 
 [project]
 name = 'tscat'
-version = "0.4.0"
+version = "0.4.1"
 description = "A library which stores, loads and filters time-series-events and catalogues."
 keywords = ["satellite", "plasma-physics", "nasa-data", "amda", "cdpp", "CDF"]
 authors = [
