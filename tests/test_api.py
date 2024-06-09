@@ -599,6 +599,16 @@ class TestTrash(unittest.TestCase):
         events_after_restore = get_events()
         self.assertListEqual(events_after_restore, events)
 
+    def test_event_is_removed_and_restored_and_the_is_removed_function_follows(self):
+        event, = self.create_events_for_test(1)
+        self.assertFalse(event.is_removed())
+
+        event.remove()
+        self.assertTrue(event.is_removed())
+
+        event.restore()
+        self.assertFalse(event.is_removed())
+
     def test_catalogue_is_removed_and_restored_and_retrieved_via_get_catalogue(self):
         catalogues = [generate_catalogue() for _ in range(2)]
         catalogues[0].remove()
@@ -609,6 +619,16 @@ class TestTrash(unittest.TestCase):
         catalogues[0].restore()
         catalogues_after_restore = get_catalogues()
         self.assertListEqual(catalogues_after_restore, catalogues)
+
+    def test_catalogue_is_removed_and_restore_and_the_is_removed_function_follows(self):
+        catalogue = generate_catalogue()
+        self.assertFalse(catalogue.is_removed())
+
+        catalogue.remove()
+        self.assertTrue(catalogue.is_removed())
+
+        catalogue.restore()
+        self.assertFalse(catalogue.is_removed())
 
     def test_catalogue_is_removed_and_restored_and_retrieved_via_get_catalogue_with_predicate(self):
         catalogues = self.create_catalogues_for_test()
