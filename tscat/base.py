@@ -138,6 +138,7 @@ class _BackendBasedEntity:
             del self._backend_entity
 
     def restore(self) -> None:
+        self._removed = False
         backend().restore(self._backend_entity)
 
     def is_removed(self) -> bool:
