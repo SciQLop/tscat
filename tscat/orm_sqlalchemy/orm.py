@@ -5,7 +5,7 @@ from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils import ScalarListType  # type: ignore
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 Base = declarative_base()
 
@@ -75,7 +75,7 @@ class Catalogue(Base):
                                        backref="catalogues",
                                        secondary=event_in_catalogue_association_table)
 
-    def __init__(self, name: str, author: str, uuid: str, tags: List[str], predicate: bytes, attributes: Dict):
+    def __init__(self, name: str, author: str, uuid: str, tags: List[str], predicate: Optional[bytes], attributes: Dict):
         self.name = name
         self.author = author
         self.uuid = uuid
