@@ -7,7 +7,7 @@ __version__ = '0.4.3'
 from .base import (create_event, create_catalogue,
                    add_events_to_catalogue, remove_events_from_catalogue,
                    save, discard, has_unsaved_changes,
-                   get_catalogues, get_events, existing_tags,
+                   get_catalogues, get_events, existing_tags, get_catalogue,
                    _Catalogue, _Event, Session, EventQueryInformation)
 
 from .import_export import (export_votable, export_votable_str, export_json,

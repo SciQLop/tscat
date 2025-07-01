@@ -3,8 +3,9 @@ from ddt import ddt, data, unpack  # type: ignore
 
 import tscat.orm_sqlalchemy
 from tscat import create_event, create_catalogue, add_events_to_catalogue, remove_events_from_catalogue, save, discard, \
-    get_catalogues, get_events
+    get_catalogues, get_events, get_catalogue
 from tscat.filtering import Comparison, Field
+from tscat import filtering
 
 import datetime as dt
 import re
@@ -178,6 +179,35 @@ class Testcreate_catalogue(unittest.TestCase):
 
         cat_list = get_catalogues(self.events[1])
         self.assertListEqual(cat_list, [a])
+
+    def test_retrieve_catalogue_by_uuid(self):
+        c = create_catalogue("Catalogue Name", "Patrick")
+        cat = get_catalogue(uuid=c.uuid)
+        self.assertEqual(c, cat)
+
+    def test_retrieve_non_existing_catalogue_by_uuid(self):
+        self.assertIsNone(get_catalogue(uuid="non-existing-uuid"))
+
+    def test_retrieve_catalogue_by_name(self):
+        c = create_catalogue("Catalogue Name", "Patrick")
+        cat = get_catalogue(name=c.name)
+        self.assertEqual(c, cat)
+
+    def test_retrieve_catalogue_by_name_returns_the_first_matching_catalogue(self):
+        c1 = create_catalogue("Catalogue Name", "Patrick")
+        c2 = create_catalogue("Catalogue Name", "Alexis")
+        cat = get_catalogue(name=c1.name)
+        self.assertEqual(c1, cat)
+
+    def test_retrieve_catalogue_by_predicate(self):
+        c1 = create_catalogue("Catalogue Name", "Patrick", predicate=Comparison("==", Field("author"), "Patrick"))
+        c2 = create_catalogue("Catalogue Name", "Alexis", predicate=Comparison("==", Field("author"), "Alexis"))
+
+        cat = get_catalogue(predicate=Comparison("==", Field("uuid"), c1.uuid))
+        self.assertEqual(c1, cat)
+
+        cat = get_catalogue(predicate=Comparison("==", Field("author"), c2.author))
+        self.assertEqual(c2, cat)
 
 
 @ddt

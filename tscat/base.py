@@ -275,30 +275,212 @@ class _Catalogue(_BackendBasedEntity):
         return self.representation('Catalogue')
 
 
-def create_event(*args, **kwargs) -> _Event:
+def create_event(start: dt.datetime, stop: dt.datetime,
+                 author: str,
+                 uuid: Optional[str] = None,
+                 tags: Optional[Iterable[str]] = None,
+                 products: Optional[Iterable[str]] = None,
+                 rating: Optional[int] = None, **kwargs) -> _Event:
+    """Create a new event in the database.
+    
+    Parameters
+    ----------
+    start: datetime
+        The start time of the event.
+    stop: datetime
+        The stop time of the event.
+    author: str
+        The author of the event.
+    uuid: str, optional
+        A unique identifier for the event. If not provided, a new UUID will be generated.
+    tags: Iterable[str], optional
+        A list of tags associated with the event.
+    products: Iterable[str], optional
+        A list of products associated with the event.
+    rating: int, optional
+        A rating for the event, between 1 and 10. If not provided, no rating is set.
+    kwargs: dict, optional
+        Additional attributes for the event. Keys must be valid Python identifiers.
+    Returns
+    -------
+    _Event
+        The created event object.
+    Raises
+    ------
+    ValueError
+        If the start date is after the stop date, or if the rating is not between 1 and 10.
+        If any tag or product contains a comma or is not a string.
+        If any key in kwargs is not a valid Python identifier.
+
+    See also
+    --------
+    create_catalogue: For creating catalogues that can contain events.
+    """
     with Session() as s:
-        return s.create_event(*args, **kwargs)
+        return s.create_event(
+            start=start,
+            stop=stop,
+            author=author,
+            uuid=uuid,
+            tags=tags or [],
+            products=products or [],
+            rating=rating,
+            **kwargs
+        )
 
 
-def create_catalogue(*args, events: List[_Event] = [], **kwargs) -> _Catalogue:
+def create_catalogue(name: str, author: str,
+                     uuid: Optional[str] = None,
+                     tags: Optional[Iterable[str]] = None,
+                     predicate: Optional[Predicate] = None, events: Optional[List[_Event]] = None,
+                     **kwargs) -> _Catalogue:
+    """Create a new catalogue in the database with optional events.
+
+    Parameters
+    ----------
+    name: str
+        The name of the catalogue.
+    author: str
+        The author of the catalogue.
+    uuid: str, optional
+        A unique identifier for the catalogue. If not provided, a new UUID will be generated.
+    tags: Iterable[str], optional
+        A list of tags associated with the catalogue.
+    predicate: Predicate, optional
+        A predicate to filter events in the catalogue. If not provided, the catalogue is static.
+    events: List[_Event], optional
+        A list of events to be added to the catalogue upon creation.
+    kwargs: dict, optional
+        Additional attributes for the catalogue. Keys must be valid Python identifiers.
+    Returns
+    -------
+    _Catalogue
+        The created catalogue object.
+    Raises
+    ------
+    ValueError
+        If the name is empty, or if any tag contains a comma or is not a string.
+        If any key in kwargs is not a valid Python identifier.
+
+    See also
+    --------
+    create_event: For creating events that can be added to the catalogue.
+    """
     with Session() as s:
-        c = s.create_catalogue(*args, **kwargs)
-        s.add_events_to_catalogue(c, events)
+        c = s.create_catalogue(
+            name=name,
+            author=author,
+            uuid=uuid,
+            tags=tags or [],
+            predicate=predicate,
+            **kwargs)
+        if events:
+            s.add_events_to_catalogue(c, events)
         return c
 
 
-def add_events_to_catalogue(catalogue: _Catalogue, events: Union[_Event, List[_Event]]) -> None:
+def add_events_to_catalogue(catalogue: Union[_Catalogue, str], events: Union[_Event, List[_Event]]) -> None:
+    """Add events to an existing catalogue.
+    Parameters
+    ----------
+    catalogue: _Catalogue or str
+        The catalogue to which events will be added. If a string is provided, it is treated as the catalogue UUID.
+    events: Union[_Event, List[_Event]]
+        A single event or a list of events to be added to the catalogue.
+
+    See also
+    --------
+    remove_events_from_catalogue: For removing events from a catalogue.
+    """
+
     with Session() as s:
+        if isinstance(catalogue, str):
+            catalogue = next(filter(lambda c: c.uuid == catalogue, get_catalogues()))
         s.add_events_to_catalogue(catalogue, events)
 
 
-def remove_events_from_catalogue(catalogue: _Catalogue, events: Union[_Event, List[_Event]]) -> None:
+def remove_events_from_catalogue(catalogue: Union[_Catalogue, str], events: Union[_Event, List[_Event]]) -> None:
+    """Remove events from an existing catalogue.
+    Parameters
+    ----------
+    catalogue: _Catalogue or str
+        The catalogue from which events will be removed. If a string is provided, it is treated as the catalogue UUID.
+    events: Union[_Event, List[_Event]]
+        A single event or a list of events to be removed from the catalogue.
+
+    See also
+    --------
+    add_events_to_catalogue: For adding events to a catalogue.
+    """
     with Session() as s:
         s.remove_events_from_catalogue(catalogue, events)
 
 
+def get_catalogue(uuid: Optional[str] = None, name: Optional[str] = None, predicate: Optional[Predicate] = None) -> \
+Optional[_Catalogue]:
+    """Get a catalogue by its UUID or name or using a predicate. If more than one catalogue matches the criteria, only the first one is returned.
+
+    Parameters
+    ----------
+    uuid: str, optional
+        The UUID of the catalogue to retrieve.
+    name: str, optional
+        The name of the catalogue to retrieve.
+    predicate: Predicate, optional
+        A predicate to filter catalogues. If provided, it overrides the uuid and name parameters.
+
+    Raises
+    ------
+    ValueError
+        If more than one of uuid, name, or predicate is provided.
+
+    Returns
+    -------
+    _Catalogue or None
+        The catalogue object if found, otherwise None.
+    """
+    if sum(v is not None for v in (uuid, name, predicate)) != 1:
+        raise ValueError("Exactly one of uuid, name or predicate must be provided.")
+    base_dict = {}
+    if uuid:
+        base_dict['uuid'] = uuid
+    elif name:
+        base_dict['name'] = name
+    elif predicate:
+        base_dict['predicate'] = predicate
+
+    base_dict['removed'] = False  # only get non-removed catalogues
+
+    cat = backend().get_catalogues(base_dict)
+    if len(cat):
+        cat = cat[0]
+        c = _Catalogue(cat['name'], cat['author'], cat['uuid'], cat['tags'], cat['predicate'],
+                       _insert=False, **cat['attributes'])
+        c._backend_entity = cat['entity']
+        c._removed = False
+        return c
+    return None
+
+
 def get_catalogues(base: Union[Predicate, _Event, None] = None, removed_items: bool = False) -> List[_Catalogue]:
     base_dict: Dict[str, Union[Predicate, 'Event', None, bool]]
+    """Get all catalogues from the database.
+    If base is a Predicate, all catalogues matching the predicate are returned.
+    If base is an Event, all catalogues containing the event are returned.
+    If base is None, all catalogues are returned.
+    If removed_items is True, also removed catalogues are returned.
+
+    Parameters
+    ----------
+    base: Predicate, Event or None
+        The base for the query (see above)
+    removed_items: bool
+        If True, also removed catalogues are returned.
+    Returns
+    -------
+    List[_Catalogue]
+        A list of catalogue objects.
+    """
 
     if isinstance(base, Predicate):
         base_dict = {'predicate': base}
@@ -317,6 +499,7 @@ def get_catalogues(base: Union[Predicate, _Event, None] = None, removed_items: b
         c._removed = removed_items
         catalogues += [c]
     return catalogues
+
 
 def existing_tags() -> Set[str]:
     """Get all existing tags from both events and catalogues."""
