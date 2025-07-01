@@ -1,7 +1,7 @@
 import datetime as dt
 import re
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, List, Optional, TYPE_CHECKING, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, TYPE_CHECKING, Tuple, Union, Set
 from uuid import UUID, uuid4
 
 from . import orm_sqlalchemy
@@ -317,6 +317,10 @@ def get_catalogues(base: Union[Predicate, _Event, None] = None, removed_items: b
         c._removed = removed_items
         catalogues += [c]
     return catalogues
+
+def existing_tags() -> Set[str]:
+    """Get all existing tags from both events and catalogues."""
+    return backend().get_existing_tags()
 
 
 def __backend_to_event(ev: Dict, removed_item: bool) -> _Event:

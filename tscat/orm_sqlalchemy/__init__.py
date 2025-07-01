@@ -14,7 +14,7 @@ from appdirs import user_data_dir
 from typing import Union, List, Dict, Type, Set
 from typing_extensions import Literal
 
-from sqlalchemy import create_engine, and_, or_, not_, event, func, cast, String
+from sqlalchemy import create_engine, and_, or_, not_, event, func, cast, String, engine
 from sqlalchemy.orm import Session, Query
 from sqlalchemy.pool.base import _ConnectionFairy
 
@@ -307,6 +307,18 @@ class Backend:
                 "entity": e}
 
         return d
+
+    def get_existing_tags(self) -> Set[str]:
+        def flatten(obj):
+            if isinstance(obj, list) or isinstance(obj, engine.row.Row):
+                for item in obj:
+                    yield from flatten(item)
+            else:
+                yield obj
+
+        events_tags = set(flatten(self.session.query(orm.Event.tags).filter(orm.Event.tags != []).all()))
+        catalogues_tags = set(flatten(self.session.query(orm.Catalogue.tags).filter(orm.Catalogue.tags != []).all()))
+        return events_tags.union(catalogues_tags)
 
     def add_and_flush(self, entity_list: List[Union[orm.Event, orm.Catalogue]]):
         self.session.add_all(entity_list)

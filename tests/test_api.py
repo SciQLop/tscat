@@ -9,7 +9,7 @@ import tscat.orm_sqlalchemy
 from ddt import ddt, data, unpack  # type: ignore
 from tscat import create_event, create_catalogue, add_events_to_catalogue, get_events, \
     discard, save, has_unsaved_changes, export_json, import_json, get_catalogues, \
-    import_votable, import_votable_file, import_votable_str, export_votable, export_votable_str
+    import_votable, import_votable_file, import_votable_str, export_votable, export_votable_str, existing_tags
 from tscat.filtering import Comparison, Field
 
 __here__ = os.path.dirname(__file__)
@@ -245,6 +245,7 @@ class TestAPIAttributes(unittest.TestCase):
         c.str_list = ["goodbye", "earth"]
 
         self.assertListEqual(get_catalogues(), [c])
+        self.assertSetEqual(existing_tags(), {'mms1'})
 
     def test_entities_fix_keys_and_values_can_be_retrieved(self):
         c = create_catalogue("Catalogue Name", "Patrick", other_attr="asd")
@@ -262,6 +263,16 @@ class TestAPIAttributes(unittest.TestCase):
 
         keys = list(sorted(e.variable_attributes().keys()))
         self.assertListEqual(sorted(['other_attr', 'other_attr2']), keys)
+
+    def test_retrieve_all_tags(self):
+        c1 = create_catalogue("Catalogue 1", "Patrick", tags=["tag1", "tag2"])
+        c2 = create_catalogue("Catalogue 2", "Patrick", tags=["tag2", "tag3"])
+        e1 = create_event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick", tags=["tag4"])
+        e2 = create_event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick", tags=["tag5"])
+
+        save()
+
+        self.assertSetEqual(existing_tags(), {"tag1", "tag2", "tag3", "tag4", "tag5"})
 
 
 @ddt
