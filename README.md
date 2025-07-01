@@ -1,20 +1,14 @@
-======================
-Time Series Catalogues
-======================
+# Time Series Catalogues
 
-.. image:: https://github.com/SciQLop/tscat/actions/workflows/test_main.yml/badge.svg
-        :target: https://github.com/pboettch/tscat/actions/workflows/test_main.yml
-
-.. image:: https://codecov.io/gh/SciQLop/tscat/branch/main/graph/badge.svg
-        :target: https://codecov.io/gh/SciQLop/tscat
-        :alt: Coverage Status
+![Test Status](https://github.com/SciQLop/tscat/actions/workflows/test_main.yml/badge.svg)
+![Coverage Status](https://codecov.io/gh/SciQLop/tscat/branch/main/graph/badge.svg)
 
 
 A library which stores, loads and filters time-series-events and associates them catalogues and
 dynamic catalogues (filter-based).
 
-Usage
-=====
+## Usage
+
 You can install the package using pip:
 ```bash
 pip install tscat
@@ -26,8 +20,7 @@ cd tscat
 pip install -e .
 ```
 
-Examples
-========
+## Examples
 
 Let's create a simple catalogue with some events and save it:
 
@@ -73,9 +66,10 @@ catalogue = create_catalogue("icmecat", author="Christian Möstl", description="
 
 # save the catalogue
 save()
+```
 
-Features
-========
+## Features
+
 - Store and manage time-series events in catalogues
 - Filter events using dynamic catalogue queries
 - Load and export catalogue data
@@ -84,6 +78,5 @@ Features
 - Python API for programmatic access
 
 
-
 * Free software: GNU General Public License v3
-* Documentation: https://tscat.readthedocs.io.
+
