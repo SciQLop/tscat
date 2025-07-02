@@ -13,10 +13,10 @@ class _Member:
     def __init__(self, name: str):
         self.value = name
 
-    def __eq__(self, other: MemberValueType) -> 'Predicate':
+    def __eq__(self, other: MemberValueType) -> 'Predicate': # type: ignore[override]
         return Comparison('==', self, other)
 
-    def __ne__(self, other) -> 'Predicate':
+    def __ne__(self, other) -> 'Predicate': # type: ignore[override]
         return Comparison('!=', self, other)
 
     def __gt__(self, other) -> 'Predicate':
@@ -33,6 +33,7 @@ class _Member:
 
     def matches(self, value: str) -> 'Predicate':
         return Match(self, value)
+
 
 
 class Field(_Member):
@@ -171,12 +172,9 @@ class CatalogueFilterError(Exception):
 
 
 
-class _Catalogue:
+class _CatalogueToken:
     def __init__(self):
         pass
-
-    def __contains__(self, item: "_Event") -> Predicate:
-        return InCatalogue(item)
 
     def __getattr__(self, item) -> _Member:
         if item in ('name', 'author', 'uuid', 'tags', 'predicate', 'attributes'):
@@ -184,12 +182,14 @@ class _Catalogue:
         return Attribute(item)
 
 
-class _Events:
+class _EventsToken:
     def __init__(self):
         pass
 
     def __contains__(self, item: str) -> Predicate:
-        return self[item].exists()
+        if item in ('start', 'stop', 'author', 'tags', 'products', 'rating', 'uuid'):
+            raise ValueError(f"'{item}' is always present in events, therefore cannot be used in 'in' checks.")
+        return Attribute(item).exists()
 
     def __getattr__(self, item) -> _Member:
         if item in ('start', 'stop', 'author', 'tags', 'products', 'rating', 'uuid'):
@@ -198,6 +198,6 @@ class _Events:
 
 
 # tokens to create predicates from Python code
-catalogue = _Catalogue()
-events = _Events()
+catalogue = _CatalogueToken()
+events = _EventsToken()
 event = events

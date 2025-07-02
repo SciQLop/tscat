@@ -175,7 +175,8 @@ class TestEventFiltering(unittest.TestCase):
         event_list = get_events(~(filtering.events.s.matches(r'^Go.*') & (filtering.events.h == 30)))
         self.assertListEqual(event_list, [events[0], events[1]])
 
-
+        with self.assertRaises(ValueError):
+            get_events('start' in filtering.events)
 
     def test_get_only_manually_added_events_from_dynamic_catalogue(self):
         cat = create_catalogue('T', 'A')
@@ -187,6 +188,7 @@ class TestEventFiltering(unittest.TestCase):
         assert get_events(cat)[0] == [events[0], events[1]]
 
         assert get_events(cat, assigned_only=True)[0] == [events[1]]
+
 
 @ddt
 class TestStringListAttributes(unittest.TestCase):

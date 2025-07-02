@@ -282,7 +282,7 @@ def create_event(start: dt.datetime, stop: dt.datetime,
                  products: Optional[Iterable[str]] = None,
                  rating: Optional[int] = None, **kwargs) -> _Event:
     """Create a new event in the database.
-    
+
     Parameters
     ----------
     start: datetime
@@ -413,11 +413,16 @@ def remove_events_from_catalogue(catalogue: Union[_Catalogue, str], events: Unio
     add_events_to_catalogue: For adding events to a catalogue.
     """
     with Session() as s:
+        if isinstance(catalogue, str):
+            c = get_catalogue(uuid=catalogue)
+            if not c:
+                raise ValueError(f"Catalogue with UUID '{catalogue}' not found.")
+            catalogue = c
         s.remove_events_from_catalogue(catalogue, events)
 
 
 def get_catalogue(uuid: Optional[str] = None, name: Optional[str] = None, predicate: Optional[Predicate] = None) -> \
-Optional[_Catalogue]:
+    Optional[_Catalogue]:
     """Get a catalogue by its UUID or name or using a predicate. If more than one catalogue matches the criteria, only the first one is returned.
 
     Parameters
@@ -441,7 +446,7 @@ Optional[_Catalogue]:
     """
     if sum(v is not None for v in (uuid, name, predicate)) != 1:
         raise ValueError("Exactly one of uuid, name or predicate must be provided.")
-    base_dict = {}
+    base_dict: Dict[str, Any] = {}
     if uuid:
         base_dict['uuid'] = uuid
     elif name:
@@ -451,9 +456,8 @@ Optional[_Catalogue]:
 
     base_dict['removed'] = False  # only get non-removed catalogues
 
-    cat = backend().get_catalogues(base_dict)
-    if len(cat):
-        cat = cat[0]
+    if (cats := backend().get_catalogues(base_dict)) and len(cats) > 0:
+        cat: Dict[Any, Any] = cats[0]
         c = _Catalogue(cat['name'], cat['author'], cat['uuid'], cat['tags'], cat['predicate'],
                        _insert=False, **cat['attributes'])
         c._backend_entity = cat['entity']
