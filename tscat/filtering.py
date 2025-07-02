@@ -7,35 +7,83 @@ import uuid
 if TYPE_CHECKING:
     from . import _Catalogue
 
+MemberValueType = Union[str, int, float, dt.datetime, bool]
 
-class Field:
+class _Member:
     def __init__(self, name: str):
         self.value = name
+
+    def __eq__(self, other: MemberValueType) -> 'Predicate':
+        return Comparison('==', self, other)
+
+    def __ne__(self, other) -> 'Predicate':
+        return Comparison('!=', self, other)
+
+    def __gt__(self, other) -> 'Predicate':
+        return Comparison('>', self, other)
+
+    def __lt__(self, other) -> 'Predicate':
+        return Comparison('<', self, other)
+
+    def __ge__(self, other) -> 'Predicate':
+        return Comparison('>=', self, other)
+
+    def __le__(self, other) -> 'Predicate':
+        return Comparison('<=', self, other)
+
+    def matches(self, value: str) -> 'Predicate':
+        return Match(self, value)
+
+
+class Field(_Member):
+    def __init__(self, name: str):
+        super().__init__(name)
 
     def __repr__(self):
         return f"Field('{self.value}')"
 
 
-class Attribute:
+class Attribute(_Member):
     def __init__(self, name: str):
-        self.value = name
+        super().__init__(name)
 
     def __repr__(self):
         return f"Attribute('{self.value}')"
 
+    def exists(self) -> 'Predicate':
+        return Has(self)
 
 class Predicate:
     def __eq__(self, o):
         return repr(self) == repr(o)
 
+    def __and__(self, other):
+        if isinstance(other, Predicate):
+            return All(self, other)
+        elif isinstance(other, (list, tuple)) and all(isinstance(item, Predicate) for item in other):
+            return All(self, *other)
+        else:
+            raise TypeError(f"Cannot combine {type(self).__name__} with {type(other).__name__}")
+
+    def __or__(self, other):
+        if isinstance(other, Predicate):
+            return Any(self, other)
+        elif isinstance(other, (list, tuple)) and all(isinstance(item, Predicate) for item in other):
+            return Any(self, *other)
+        else:
+            raise TypeError(f"Cannot combine {type(self).__name__} with {type(other).__name__}")
+
+    def __invert__(self):
+        return Not(self)
+
 
 class Comparison(Predicate):
     def __init__(self,
                  op: Union[Literal['>'], Literal['>='],
-                           Literal['<'], Literal['<='],
-                           Literal['=='], Literal['!=']],
-                 lhs: Union[Field, Attribute],
-                 rhs: Union[str, int, float, dt.datetime, bool]):
+                 Literal['<'], Literal['<='],
+                 Literal['=='], Literal['!=']],
+                 lhs: _Member,
+                 rhs: MemberValueType):
         self._op = op
         self._lhs = lhs
         self._rhs = rhs
@@ -46,7 +94,7 @@ class Comparison(Predicate):
 
 class Match(Predicate):
     def __init__(self,
-                 lhs: Union[Field, Attribute],
+                 lhs: _Member,
                  rhs: str):  # regex
         self._lhs = lhs
         self._rhs = rhs
@@ -88,7 +136,7 @@ class Any(Predicate):
 
 
 class In(Predicate):
-    def __init__(self, lhs: str, rhs: Union[Field, Attribute]):
+    def __init__(self, lhs: str, rhs: _Member):
         self._lhs = lhs
         self._rhs = rhs
 
@@ -120,3 +168,36 @@ class PredicateRecursionError(Exception):
 class CatalogueFilterError(Exception):
     def __init__(self, message: str):
         super().__init__(message)
+
+
+
+class _Catalogue:
+    def __init__(self):
+        pass
+
+    def __contains__(self, item: "_Event") -> Predicate:
+        return InCatalogue(item)
+
+    def __getattr__(self, item) -> _Member:
+        if item in ('name', 'author', 'uuid', 'tags', 'predicate', 'attributes'):
+            return Field(item)
+        return Attribute(item)
+
+
+class _Events:
+    def __init__(self):
+        pass
+
+    def __contains__(self, item: str) -> Predicate:
+        return self[item].exists()
+
+    def __getattr__(self, item) -> _Member:
+        if item in ('start', 'stop', 'author', 'tags', 'products', 'rating', 'uuid'):
+            return Field(item)
+        return Attribute(item)
+
+
+# tokens to create predicates from Python code
+catalogue = _Catalogue()
+events = _Events()
+event = events

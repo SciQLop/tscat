@@ -9,6 +9,8 @@ from tscat import create_event, create_catalogue, add_events_to_catalogue, save,
 from tscat.filtering import Predicate, Comparison, Field, Attribute, Has, Match, Not, All, Any, In, UUID, \
     InCatalogue, PredicateRecursionError, CatalogueFilterError
 
+from tscat import filtering
+
 import datetime as dt
 
 dates = [
@@ -38,7 +40,10 @@ class TestFilterRepr(unittest.TestCase):
          "All(Comparison('<=', Field('fieldName'), 'value'), Match(Field('fieldName'), '^mat[ch]{2}\\\\n$'))"),
         (In("Value", Field("FieldName")), "In('Value', Field('FieldName'))"),
         (InCatalogue(create_catalogue('Name', 'Author', uuid='957d65ae-f278-48f5-aab1-8cf50efeadef')),
-         "InCatalogue(Catalogue(name=Name, author=Author, uuid=957d65ae-f278-48f5-aab1-8cf50efeadef, tags=[], predicate=None) attributes())")
+         "InCatalogue(Catalogue(name=Name, author=Author, uuid=957d65ae-f278-48f5-aab1-8cf50efeadef, tags=[], predicate=None) attributes())"),
+        (filtering.catalogue.some_field == 'value', "Comparison('==', Attribute('some_field'), 'value')"),
+        (filtering.events.some_field == 'value', "Comparison('==', Attribute('some_field'), 'value')"),
+        (filtering.events.another_field.matches(r'^pattern$'), "Match(Attribute('another_field'), '^pattern$')"),
     )
     @unpack
     def test_predicate_repr(self, pred: Predicate, expected: str) -> None:
@@ -152,6 +157,25 @@ class TestEventFiltering(unittest.TestCase):
     def test_logical_combinations(self, pred, idx):
         event_list = get_events(All(pred))
         self.assertListEqual(event_list, [events[i] for i in idx])
+
+    def test_new_syntax(self):
+        # Test the new syntax for filtering
+        event_list = get_events(filtering.events.author == 'Patrick')
+        self.assertListEqual(event_list, [events[0]])
+
+        event_list = get_events((filtering.events.author == 'Patrick') | (filtering.events.author == 'Alexis'))
+        self.assertListEqual(event_list, [events[0], events[1]])
+
+        event_list = get_events((filtering.events.author == 'Patrick') & (filtering.events.a == 1))
+        self.assertListEqual(event_list, [events[0]])
+
+        event_list = get_events(filtering.events.s.matches(r'^Go.*'))
+        self.assertListEqual(event_list, [events[2]])
+
+        event_list = get_events(~(filtering.events.s.matches(r'^Go.*') & (filtering.events.h == 30)))
+        self.assertListEqual(event_list, [events[0], events[1]])
+
+
 
     def test_get_only_manually_added_events_from_dynamic_catalogue(self):
         cat = create_catalogue('T', 'A')
