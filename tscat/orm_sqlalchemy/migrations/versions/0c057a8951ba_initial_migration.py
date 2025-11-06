@@ -24,7 +24,7 @@ def upgrade() -> None:
     # we need to check if the tables already exist but only in this initial migration script
 
     conn = op.get_bind()
-    inspector = Inspector.from_engine(conn)
+    inspector = Inspector.from_engine(conn) # type: ignore
     tables = inspector.get_table_names()
     if 'catalogues' in tables:
         return

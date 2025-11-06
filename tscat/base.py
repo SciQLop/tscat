@@ -67,6 +67,7 @@ class Session:
                                                [event._backend_entity for event in _listify(events)])
 
 
+
 class _BackendBasedEntity:
     def __init__(self):
         self._removed = False

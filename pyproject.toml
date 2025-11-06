@@ -20,21 +20,22 @@ requires-python = ">=3.8"
 license = { file = "LICENSE" }
 readme = "README.md"
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
+    "Topic :: Scientific/Engineering :: Physics",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Natural Language :: English",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
     "alembic",
     "typing_extensions>=3.7",
-    'sqlalchemy[mypy]<2,>=1.4.0',
+    'sqlalchemy[mypy]<3,>=1.4.0',
     "appdirs>=1.4.4 ",
     "SQLAlchemy_Utils>=0.37.8",
     'orjson',

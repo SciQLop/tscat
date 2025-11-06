@@ -59,10 +59,10 @@ class PredicateVisitor:
             )
 
     def _visit_all(self, all_: All):
-        return and_(self.visit_predicate(pred) for pred in all_._predicates)
+        return and_(self.visit_predicate(pred) for pred in all_._predicates) # type: ignore
 
     def _visit_any(self, any_: Any):
-        return or_(self.visit_predicate(pred) for pred in any_._predicates)
+        return or_(self.visit_predicate(pred) for pred in any_._predicates) # type: ignore
 
     def _visit_not(self, not__: Not):
         return not_(self.visit_predicate(not__._operand))
@@ -216,8 +216,11 @@ class Backend:
         catalogue.events.extend(events)
 
     def remove_events_from_catalogue(self, catalogue: orm.Catalogue, events: List[orm.Event]) -> None:
-        for e in events:
-            catalogue.events.remove(e)
+            for e in events:
+                if e in catalogue.events:
+                    catalogue.events.remove(e)
+                else:
+                    raise ValueError('Event is not in catalogue.')
 
     def update_field(self, entity: Union[orm.Event, orm.Catalogue], key: str, value) -> None:
         if key in ['predicate']:
@@ -254,7 +257,7 @@ class Backend:
         else:
             f = and_(getattr(orm_class, 'removed') == removed, f)
 
-        q = self.session.query(orm_class, entity_filter)
+        q = self.session.query(orm_class, entity_filter) # type: ignore
         if f is not None:
             q = q.filter(f)
         return q
@@ -292,7 +295,7 @@ class Backend:
 
         return events
 
-    def get_events_by_uuid_list(self, uuids: List[str]) -> Dict[str, Dict]:
+    def get_events_by_uuid_list(self, uuids: List[str]) -> Dict[str, Dict]: # type: ignore
         d = {}
         for e in self.session.query(orm.Event).filter(orm.Event.uuid.in_(uuids)).all():
             d[e.uuid] = {
@@ -306,7 +309,7 @@ class Backend:
                 "attributes": e.attributes,
                 "entity": e}
 
-        return d
+        return d # type: ignore
 
     def get_existing_tags(self) -> Set[str]:
         def flatten(obj):

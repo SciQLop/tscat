@@ -7,7 +7,10 @@ from sqlalchemy_utils import ScalarListType  # type: ignore
 
 from typing import List, Dict, Any, Optional
 
-Base = declarative_base()
+class _Base:
+    __allow_unmapped__ = True
+
+Base = declarative_base(cls=_Base)
 
 event_in_catalogue_association_table = \
     Table('event_in_catalogue', Base.metadata,
