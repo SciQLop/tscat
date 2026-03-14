@@ -175,7 +175,6 @@ def import_json(jsons: str) -> List[_Catalogue]:
 def import_json_file(filename: str) -> List[_Catalogue]:
     with open(filename, 'r') as file:
         return import_json(file.read())
-    raise FileNotFoundError(f'File {filename} not found')
 
 
 ### VOTable (AMDA compatible)
