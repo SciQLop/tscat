@@ -16,7 +16,7 @@ maintainers = [
     { name = "Alexis Jeandet", email = "alexis.jeandet@member.fsf.org" }
 ]
 
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 license = { file = "LICENSE" }
 readme = "README.md"
 classifiers = [
@@ -35,7 +35,7 @@ classifiers = [
 dependencies = [
     "alembic",
     "typing_extensions>=3.7",
-    'sqlalchemy[mypy]<3,>=1.4.0',
+    'sqlalchemy>=2.0',
     "appdirs>=1.4.4 ",
 
     'orjson',
