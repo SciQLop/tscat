@@ -1,9 +1,9 @@
 [build-system]
-build-backend = "flit_core.buildapi"
-requires = ["flit_core"]
+build-backend = "hatchling.build"
+requires = ["hatchling"]
 
 [project]
-name = 'tscat'
+name = "tscat"
 version = "0.4.4"
 description = "A library which stores, loads and filters time-series-events and catalogues."
 keywords = ["satellite", "plasma-physics", "nasa-data", "amda", "cdpp", "CDF"]
@@ -35,31 +35,40 @@ classifiers = [
 dependencies = [
     "alembic",
     "typing_extensions>=3.7",
-    'sqlalchemy>=2.0',
-    "appdirs>=1.4.4 ",
-
-    'orjson',
-    'astropy'
+    "sqlalchemy>=2.0",
+    "appdirs>=1.4.4",
+    "orjson",
+    "astropy",
 ]
 
 [project.optional-dependencies]
 test = [
-    'flake8',
-    'appdirs-stubs',
+    "flake8",
+    "appdirs-stubs",
     "pytest>=4.6.5",
-    'pytest',
-    'pytest-pep8',
-    'pytest-cov',
-    'pytest-timeout',
-    'ddt'
+    "pytest-cov",
+    "pytest-timeout",
+    "ddt",
+    "mypy",
 ]
 doc = [
-    'sphinx',
-    'sphinx_rtd_theme',
-    'sphinx-autodoc-typehints'
+    "sphinx",
+    "sphinx_rtd_theme",
+    "sphinx-autodoc-typehints",
 ]
 
 [project.urls]
 homepage = "https://github.com/SciQLop/tscat"
 repository = "https://github.com/SciQLop/tscat"
 documentation = "https://github.com/SciQLop/tscat"
+
+[dependency-groups]
+dev = [
+    "flake8",
+    "appdirs-stubs",
+    "pytest>=4.6.5",
+    "pytest-cov",
+    "pytest-timeout",
+    "ddt",
+    "mypy",
+]

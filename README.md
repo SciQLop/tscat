@@ -20,6 +20,15 @@ cd tscat
 pip install -e .
 ```
 
+### Development
+
+This project uses [uv](https://docs.astral.sh/uv/) for development:
+```bash
+uv sync --extra test   # create venv and install deps
+uv run pytest           # run tests
+uv run flake8 tscat     # lint
+```
+
 ## Examples
 
 Let's create a simple catalogue with some events and save it:
