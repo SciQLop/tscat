@@ -135,6 +135,30 @@ class TestEvent(unittest.TestCase):
         with self.assertRaises(ValueError):
             e.rating = value
 
+    def test_event_constructor_invalid_rating_type(self):
+        t1, t2 = dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1)
+        with self.assertRaises(ValueError):
+            create_event(t1, t2, "Patrick", rating=1.5)
+
+    def test_event_constructor_invalid_rating_range(self):
+        t1, t2 = dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1)
+        with self.assertRaises(ValueError):
+            create_event(t1, t2, "Patrick", rating=0)
+        with self.assertRaises(ValueError):
+            create_event(t1, t2, "Patrick", rating=11)
+
+    def test_event_set_tags_invalid(self):
+        t1, t2 = dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1)
+        e = create_event(t1, t2, "Patrick")
+        with self.assertRaises(ValueError):
+            e.tags = [123, "valid"]
+
+    def test_event_set_products_invalid(self):
+        t1, t2 = dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1)
+        e = create_event(t1, t2, "Patrick")
+        with self.assertRaises(ValueError):
+            e.products = [123, "valid"]
+
     def test_is_assigned_true_when_added_to_catalogue_and_fetched_with_get_event(self):
         t1, t2 = dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1)
 

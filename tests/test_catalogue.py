@@ -267,3 +267,37 @@ class TestDynamiccreate_catalogue(unittest.TestCase):
         dc.predicate = Comparison("==", Field("author"), "Alexis")
 
         self.assertListEqual(get_events(dc)[0], self.events[3:])
+
+
+class TestCatalogueByUUID(unittest.TestCase):
+    def setUp(self) -> None:
+        tscat.base._backend = tscat.orm_sqlalchemy.Backend(testing=True)
+        self.events = [
+            create_event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=1), "Patrick"),
+            create_event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=2), "Patrick"),
+        ]
+        self.cat = create_catalogue("Test Cat", "Patrick", events=self.events)
+        save()
+
+    def test_add_events_to_catalogue_by_uuid(self):
+        e = create_event(dt.datetime.now(), dt.datetime.now() + dt.timedelta(days=3), "Alice")
+        add_events_to_catalogue(self.cat.uuid, e)
+        events = get_events(self.cat)[0]
+        self.assertIn(e, events)
+
+    def test_remove_events_from_catalogue_by_uuid(self):
+        remove_events_from_catalogue(self.cat.uuid, self.events[0])
+        events = get_events(self.cat)[0]
+        self.assertNotIn(self.events[0], events)
+
+    def test_get_catalogue_with_multiple_args_raises(self):
+        with self.assertRaises(ValueError):
+            get_catalogue(uuid=self.cat.uuid, name="Test Cat")
+
+    def test_get_catalogue_with_no_args_raises(self):
+        with self.assertRaises(ValueError):
+            get_catalogue()
+
+    def test_set_catalogue_tags_invalid(self):
+        with self.assertRaises(ValueError):
+            self.cat.tags = [123, "valid"]

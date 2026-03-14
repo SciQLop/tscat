@@ -506,3 +506,107 @@ class TestPredicateSerialization(unittest.TestCase):
             Match(Attribute('name'), r'^test'),
             In('tag1', Field('tags'))
         ))
+
+    def test_in_catalogue_roundtrip(self):
+        cat = create_catalogue('RoundtripCat', 'Author',
+                               uuid='11111111-1111-1111-1111-111111111111')
+        save()
+        pred = InCatalogue(cat)
+        d = pred.to_dict()
+        restored = Predicate.from_dict(d)
+        self.assertEqual(repr(pred), repr(restored))
+
+    def test_in_catalogue_roundtrip_none(self):
+        pred = InCatalogue(None)
+        d = pred.to_dict()
+        restored = Predicate.from_dict(d)
+        self.assertIsInstance(restored, InCatalogue)
+
+    def test_in_catalogue_from_dict_unknown_uuid(self):
+        tscat.base._backend = tscat.orm_sqlalchemy.Backend(testing=True)
+        d = {"type": "InCatalogue",
+             "catalogue_uuid": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"}
+        with self.assertRaises(ValueError):
+            Predicate.from_dict(d)
+
+
+class TestTokenDSLOperators(unittest.TestCase):
+    def setUp(self) -> None:
+        tscat.base._backend = tscat.orm_sqlalchemy.Backend(testing=True)
+        self.events = [
+            create_event(dates[0], dates[1], "Patrick", a=10),
+            create_event(dates[1], dates[2], "Alexis", a=20),
+        ]
+
+    def test_ne(self):
+        result = get_events(filtering.event.author != 'Patrick')
+        self.assertEqual(result, [self.events[1]])
+
+    def test_gt(self):
+        result = get_events(filtering.event.a > 10)
+        self.assertEqual(result, [self.events[1]])
+
+    def test_lt(self):
+        result = get_events(filtering.event.a < 20)
+        self.assertEqual(result, [self.events[0]])
+
+    def test_ge(self):
+        result = get_events(filtering.event.a >= 10)
+        self.assertEqual(result, [self.events[0], self.events[1]])
+
+    def test_le(self):
+        result = get_events(filtering.event.a <= 10)
+        self.assertEqual(result, [self.events[0]])
+
+    def test_invert(self):
+        pred = ~(filtering.event.author == 'Patrick')
+        result = get_events(pred)
+        self.assertEqual(result, [self.events[1]])
+
+    def test_attribute_exists(self):
+        result = get_events(filtering.event.a.exists())
+        self.assertEqual(result, [self.events[0], self.events[1]])
+
+    def test_and_with_list(self):
+        preds = [filtering.event.author == 'Patrick', filtering.event.a == 10]
+        combined = preds[0] & preds[1:]
+        result = get_events(combined)
+        self.assertEqual(result, [self.events[0]])
+
+    def test_or_with_list(self):
+        preds = [filtering.event.author == 'Patrick', filtering.event.author == 'Alexis']
+        combined = preds[0] | preds[1:]
+        result = get_events(combined)
+        self.assertEqual(result, [self.events[0], self.events[1]])
+
+    def test_and_with_invalid_type(self):
+        pred = filtering.event.author == 'Patrick'
+        with self.assertRaises(TypeError):
+            pred & 42
+
+    def test_or_with_invalid_type(self):
+        pred = filtering.event.author == 'Patrick'
+        with self.assertRaises(TypeError):
+            pred | 42
+
+    def test_catalogue_token_attribute(self):
+        tscat.base._backend = tscat.orm_sqlalchemy.Backend(testing=True)
+        create_catalogue("Cat", "Alice", mission="MMS")
+        result = get_catalogues(filtering.catalogue.mission == "MMS")
+        self.assertEqual(len(result), 1)
+
+    def test_catalogue_token_field(self):
+        tscat.base._backend = tscat.orm_sqlalchemy.Backend(testing=True)
+        create_catalogue("MyCat", "Alice")
+        result = get_catalogues(filtering.catalogue.name == "MyCat")
+        self.assertEqual(len(result), 1)
+
+    def test_event_contains_custom_attribute(self):
+        # __contains__ returns Has predicate, but `in` coerces to bool
+        result = 'a' in filtering.events
+        self.assertTrue(result)
+
+    def test_event_contains_calls_exists(self):
+        # directly test __contains__ returns a Predicate
+        result = filtering.events.__contains__('a')
+        self.assertIsInstance(result, Predicate)

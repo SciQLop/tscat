@@ -73,9 +73,6 @@ class Session:
 
 
 class _BackendBasedEntity:
-    def __init__(self):
-        self._removed = False
-
     def representation(self, name: str) -> str:
         fix = ', '.join(k + '=' + str(v) for k, v in self.fixed_attributes().items())
         kv = ', '.join(k + '=' + str(v) for k, v in self.variable_attributes().items())
