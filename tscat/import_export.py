@@ -110,8 +110,10 @@ def __canonicalize_from_dict(data: Dict[str, Any]) -> __CanonicalizedTSCatData:
 def __import_canonicalized_dict(data: __CanonicalizedTSCatData) -> List[_Catalogue]:
     event_of_uuid = {}
     catalogues: List[_Catalogue] = []
+    # collect (catalogue, event_uuids) pairs so we can add events after
+    # the Session context flushes entities into the SA session
+    catalogue_event_uuids: List[Tuple[int, List[str]]] = []
 
-    # import all new events
     with Session() as s:
         for event in data.events.values():
             event['start'] = dt.datetime.fromisoformat(event['start'])
@@ -119,20 +121,24 @@ def __import_canonicalized_dict(data: __CanonicalizedTSCatData) -> List[_Catalog
             event_of_uuid[event['uuid']] = s.create_event(**event)
 
         for catalogue_dict in data.catalogues:
-            catalogue_events: List[_Event] = []
-            for uuid in catalogue_dict['events']:
-                if uuid in event_of_uuid:
-                    catalogue_events.append(event_of_uuid[uuid])
-                else:
-                    e_list = get_events(UUID(uuid))
-                    assert isinstance(e_list, list)
-                    catalogue_events.append(e_list[0])
-
+            event_uuids = catalogue_dict['events']
             del catalogue_dict['events']
-
             catalogue = s.create_catalogue(**catalogue_dict)
-            s.add_events_to_catalogue(catalogue, catalogue_events)
             catalogues.append(catalogue)
+            catalogue_event_uuids.append((len(catalogues) - 1, event_uuids))
+
+    # entities are now in the SA session — safe to build relationships
+    from .base import add_events_to_catalogue
+    for cat_idx, uuids in catalogue_event_uuids:
+        catalogue_events: List[_Event] = []
+        for uuid in uuids:
+            if uuid in event_of_uuid:
+                catalogue_events.append(event_of_uuid[uuid])
+            else:
+                e_list = get_events(UUID(uuid))
+                assert isinstance(e_list, list)
+                catalogue_events.append(e_list[0])
+        add_events_to_catalogue(catalogues[cat_idx], catalogue_events)
 
     return catalogues
 
