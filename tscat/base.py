@@ -46,14 +46,18 @@ class Session:
     def __exit__(self, exc_type, exc_value, exc_tb) -> None:
         backend().add_and_flush(self.entities)
 
+    def _track(self, entity) -> None:
+        self.entities.append(entity)
+        backend().session.add(entity)
+
     def create_event(self, *args: Any, **kwargs: Any) -> '_Event':
         e = _Event(*args, **kwargs)
-        self.entities.append(e._backend_entity)
+        self._track(e._backend_entity)
         return e
 
     def create_catalogue(self, *args: Any, **kwargs: Any) -> '_Catalogue':
         c = _Catalogue(*args, **kwargs)
-        self.entities.append(c._backend_entity)
+        self._track(c._backend_entity)
         return c
 
     @staticmethod
@@ -152,8 +156,8 @@ class _Event(_BackendBasedEntity):
     def __init__(self, start: dt.datetime, stop: dt.datetime,
                  author: str,
                  uuid: Optional[str] = None,
-                 tags: Iterable[str] = [],
-                 products: Iterable[str] = [],
+                 tags: Optional[Iterable[str]] = None,
+                 products: Optional[Iterable[str]] = None,
                  rating: Optional[int] = None,
                  _insert: bool = True,
                  **kwargs):
@@ -163,8 +167,8 @@ class _Event(_BackendBasedEntity):
         self.start = start
         self.stop = stop
         self.author = author
-        self.tags = list(tags)
-        self.products = list(products)
+        self.tags = list(tags) if tags else []
+        self.products = list(products) if products else []
         self.rating = rating
 
         if not uuid:
@@ -238,7 +242,7 @@ class _Catalogue(_BackendBasedEntity):
 
     def __init__(self, name: str, author: str,
                  uuid: Optional[str] = None,
-                 tags: Iterable[str] = [],
+                 tags: Optional[Iterable[str]] = None,
                  predicate: Optional[Predicate] = None,
                  _insert: bool = True,
                  **kwargs):
@@ -254,7 +258,7 @@ class _Catalogue(_BackendBasedEntity):
         else:
             self.uuid = uuid
 
-        self.tags = list(tags)
+        self.tags = list(tags) if tags else []
         self.predicate = predicate
 
         _verify_attribute_names(kwargs)

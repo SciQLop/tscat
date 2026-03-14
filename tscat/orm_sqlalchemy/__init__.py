@@ -320,6 +320,7 @@ class Backend:
 
     def rollback(self):
         self.session.rollback()
+        self.session.expire_all()
 
     def has_unsaved_changes(self) -> bool:
         return self.session.in_transaction()

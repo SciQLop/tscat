@@ -83,17 +83,18 @@ def __canonicalize_from_dict(data: Dict[str, Any]) -> __CanonicalizedTSCatData:
                              'but with different values.')
         data['events'].remove(event)
 
+    existing_cat_uuids = {c['uuid'] for c in data['catalogues']}
+    existing_cats = {c.uuid: c for c in get_catalogues() if c.uuid in existing_cat_uuids}
+
     for catalogue in data['catalogues'][:]:
-        check_catalogue = get_catalogues(UUID(catalogue['uuid']))
-        if len(check_catalogue) != 0:
+        if catalogue['uuid'] in existing_cats:
+            existing_cat = existing_cats[catalogue['uuid']]
 
-            e_tuple = get_events(check_catalogue[0])
+            e_tuple = get_events(existing_cat)
             assert isinstance(e_tuple, tuple)
-            events_uuids = [event.uuid for event in e_tuple[0]]
-            catalogue_dump = check_catalogue[0].dump()
+            events_uuids = sorted(event.uuid for event in e_tuple[0])
+            catalogue_dump = existing_cat.dump()
 
-            # convert the existing catalogue so that it can be compared with the to-be-imported one
-            events_uuids.sort()
             catalogue_dump.update({'events': events_uuids})
             if catalogue_dump['predicate']:
                 catalogue_dump['predicate'] = str(catalogue_dump['predicate'])
@@ -110,9 +111,6 @@ def __canonicalize_from_dict(data: Dict[str, Any]) -> __CanonicalizedTSCatData:
 def __import_canonicalized_dict(data: __CanonicalizedTSCatData) -> List[_Catalogue]:
     event_of_uuid = {}
     catalogues: List[_Catalogue] = []
-    # collect (catalogue, event_uuids) pairs so we can add events after
-    # the Session context flushes entities into the SA session
-    catalogue_event_uuids: List[Tuple[int, List[str]]] = []
 
     with Session() as s:
         for event in data.events.values():
@@ -121,24 +119,20 @@ def __import_canonicalized_dict(data: __CanonicalizedTSCatData) -> List[_Catalog
             event_of_uuid[event['uuid']] = s.create_event(**event)
 
         for catalogue_dict in data.catalogues:
-            event_uuids = catalogue_dict['events']
-            del catalogue_dict['events']
-            catalogue = s.create_catalogue(**catalogue_dict)
-            catalogues.append(catalogue)
-            catalogue_event_uuids.append((len(catalogues) - 1, event_uuids))
+            catalogue_events: List[_Event] = []
+            for uuid in catalogue_dict['events']:
+                if uuid in event_of_uuid:
+                    catalogue_events.append(event_of_uuid[uuid])
+                else:
+                    e_list = get_events(UUID(uuid))
+                    assert isinstance(e_list, list)
+                    catalogue_events.append(e_list[0])
 
-    # entities are now in the SA session — safe to build relationships
-    from .base import add_events_to_catalogue
-    for cat_idx, uuids in catalogue_event_uuids:
-        catalogue_events: List[_Event] = []
-        for uuid in uuids:
-            if uuid in event_of_uuid:
-                catalogue_events.append(event_of_uuid[uuid])
-            else:
-                e_list = get_events(UUID(uuid))
-                assert isinstance(e_list, list)
-                catalogue_events.append(e_list[0])
-        add_events_to_catalogue(catalogues[cat_idx], catalogue_events)
+            del catalogue_dict['events']
+
+            catalogue = s.create_catalogue(**catalogue_dict)
+            s.add_events_to_catalogue(catalogue, catalogue_events)
+            catalogues.append(catalogue)
 
     return catalogues
 
