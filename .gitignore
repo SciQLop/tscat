@@ -101,5 +101,9 @@ ENV/
 # mypy
 .mypy_cache/
 
+# uv
+uv.lock
+
 # IDE settings
 .vscode/
+.idea/
