@@ -60,13 +60,14 @@ def __canonicalize_from_dict(data: Dict[str, Any]) -> __CanonicalizedTSCatData:
     # if not existing import
 
     uuids = [event['uuid'] for event in data['events']]
-    events = backend().get_events_by_uuid_list(uuids)
+    existing_events = backend().get_events_by_uuid_list(uuids)
+    skip_event_uuids: set = set()
 
-    for event in data['events'][:]:
-        if event['uuid'] not in events:
+    for event in data['events']:
+        if event['uuid'] not in existing_events:
             continue
 
-        existing = events[event['uuid']]
+        existing = existing_events[event['uuid']]
         check_event = {
             'start': dt.datetime.isoformat(existing.start),
             'stop': dt.datetime.isoformat(existing.stop),
@@ -81,12 +82,13 @@ def __canonicalize_from_dict(data: Dict[str, Any]) -> __CanonicalizedTSCatData:
         if check_event != event:
             raise ValueError(f'Import: event with UUID {event["uuid"]} already exists in database, '
                              'but with different values.')
-        data['events'].remove(event)
+        skip_event_uuids.add(event['uuid'])
 
     existing_cat_uuids = {c['uuid'] for c in data['catalogues']}
     existing_cats = {c.uuid: c for c in get_catalogues() if c.uuid in existing_cat_uuids}
+    skip_cat_uuids: set = set()
 
-    for catalogue in data['catalogues'][:]:
+    for catalogue in data['catalogues']:
         if catalogue['uuid'] in existing_cats:
             existing_cat = existing_cats[catalogue['uuid']]
 
@@ -103,9 +105,11 @@ def __canonicalize_from_dict(data: Dict[str, Any]) -> __CanonicalizedTSCatData:
             if catalogue_dump != catalogue:
                 raise ValueError(f'Import: catalogue with UUID {catalogue["uuid"]} already exists in database, ' +
                                  'but with different values.')
-            data['catalogues'].remove(catalogue)
+            skip_cat_uuids.add(catalogue['uuid'])
 
-    return __CanonicalizedTSCatData(data['catalogues'], {e['uuid']: e for e in data['events']})
+    new_events = [e for e in data['events'] if e['uuid'] not in skip_event_uuids]
+    new_catalogues = [c for c in data['catalogues'] if c['uuid'] not in skip_cat_uuids]
+    return __CanonicalizedTSCatData(new_catalogues, {e['uuid']: e for e in new_events})
 
 
 def __import_canonicalized_dict(data: __CanonicalizedTSCatData) -> List[_Catalogue]:
@@ -276,10 +280,10 @@ def export_votable(catalogues: Union[List[_Catalogue], _Catalogue]) -> VOTableFi
 
         e_tuple = get_events(catalogue)
         assert isinstance(e_tuple, tuple)
-        # set of all attributes of any event
-        var_attrs = set(itertools.chain.from_iterable(event.variable_attributes().keys() for event in e_tuple[0]))
-        # set of all attributes of all events
-        var_attrs_intersect = set.intersection(*[set(event.variable_attributes().keys()) for event in e_tuple[0]])
+        # compute union and intersection of variable attributes in a single pass
+        cached_var_attrs = [event.variable_attributes() for event in e_tuple[0]]
+        var_attrs = set(itertools.chain.from_iterable(va.keys() for va in cached_var_attrs))
+        var_attrs_intersect = set.intersection(*(set(va.keys()) for va in cached_var_attrs))
 
         # for the moment raise an error if there are attributes not present in every event
         if var_attrs != var_attrs_intersect:
@@ -367,6 +371,7 @@ def __canonicalize_votable_import(votable: VOTableFile, table_name: Optional[str
 
         has_author_field = any(f[1] == 'author' for f in fields_vs_index.keys())
         has_uuid_field = any(f[1] == 'uuid' for f in fields_vs_index.keys())
+        seen_uuids = {e['uuid'] for e in ddict['events']}
 
         for l in table.array:
             event = {}
@@ -379,8 +384,9 @@ def __canonicalize_votable_import(votable: VOTableFile, table_name: Optional[str
             for (index, name), vtf in fields_vs_index.items():
                 event[name] = vtf.convert_tscat(l[index])
 
-            if not any(event['uuid'] == e['uuid'] for e in ddict['events']):
+            if event['uuid'] not in seen_uuids:
                 ddict['events'].append(event)
+                seen_uuids.add(event['uuid'])
 
             catalogue['events'].append(event['uuid'])  # type: ignore
 
