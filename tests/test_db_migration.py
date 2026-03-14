@@ -27,3 +27,13 @@ class DBMigration(unittest.TestCase):
         self.assertEqual(e.rating, 3)
 
         self.assertEqual(len(tscat.get_events()), 2)
+
+    def test_existing_event_tags_survived_migration(self):
+        existing, = tscat.get_events()
+        self.assertListEqual(existing.tags, ['tag1', 'tag2'])
+        self.assertListEqual(existing.products, ['prod1', 'mars'])
+
+    def test_existing_catalogue_tags_survived_migration(self):
+        cats = tscat.get_catalogues()
+        self.assertEqual(len(cats), 1)
+        self.assertListEqual(cats[0].tags, ['tag1', '#tag2', '', "'as"])

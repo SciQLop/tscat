@@ -441,3 +441,68 @@ class TestEventFilteringOnCatalogues(unittest.TestCase):
     def test_raise_if_get_catalogue_is_used_with_in_catalogue(self):
         with self.assertRaises(CatalogueFilterError):
             get_catalogues(InCatalogue(self.c))
+
+
+class TestPredicateSerialization(unittest.TestCase):
+    def _roundtrip(self, pred):
+        d = pred.to_dict()
+        restored = Predicate.from_dict(d)
+        self.assertEqual(repr(pred), repr(restored))
+
+    def test_comparison_field(self):
+        self._roundtrip(Comparison('==', Field('author'), 'Patrick'))
+
+    def test_comparison_attribute(self):
+        self._roundtrip(Comparison('>=', Attribute('score'), 42))
+
+    def test_comparison_with_datetime(self):
+        self._roundtrip(Comparison('>=', Field('start'), dt.datetime(2020, 1, 1)))
+
+    def test_comparison_with_bool(self):
+        self._roundtrip(Comparison('==', Attribute('active'), True))
+
+    def test_comparison_with_float(self):
+        self._roundtrip(Comparison('>', Attribute('score'), 3.14))
+
+    def test_match_field(self):
+        self._roundtrip(Match(Field('author'), r'^Pat.*'))
+
+    def test_match_attribute(self):
+        self._roundtrip(Match(Attribute('name'), r'test\d+'))
+
+    def test_has(self):
+        self._roundtrip(Has(Attribute('quality')))
+
+    def test_not(self):
+        self._roundtrip(Not(Comparison('==', Field('author'), 'Patrick')))
+
+    def test_all(self):
+        self._roundtrip(All(
+            Comparison('==', Field('author'), 'Patrick'),
+            Has(Attribute('quality'))
+        ))
+
+    def test_any(self):
+        self._roundtrip(Any(
+            Comparison('==', Field('author'), 'Patrick'),
+            Match(Field('author'), r'^A')
+        ))
+
+    def test_in_field(self):
+        self._roundtrip(In('tag1', Field('tags')))
+
+    def test_in_attribute(self):
+        self._roundtrip(In('value', Attribute('my_list')))
+
+    def test_uuid_predicate(self):
+        self._roundtrip(UUID('aa1b3598-babf-4317-9b54-4d7be254121e'))
+
+    def test_nested_complex(self):
+        self._roundtrip(All(
+            Any(
+                Comparison('==', Field('author'), 'Patrick'),
+                Not(Has(Attribute('draft')))
+            ),
+            Match(Attribute('name'), r'^test'),
+            In('tag1', Field('tags'))
+        ))

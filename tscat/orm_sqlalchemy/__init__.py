@@ -3,7 +3,6 @@ from . import orm
 from ..filtering import Predicate, Comparison, Field, Attribute, All, Any, Match, Has, Not, In, InCatalogue, \
     PredicateRecursionError, CatalogueFilterError
 
-import pickle
 import datetime as dt
 import os
 from shutil import copyfile
@@ -67,17 +66,14 @@ class PredicateVisitor:
     def _visit_not(self, not__: Not):
         return not_(self.visit_predicate(not__._operand))
 
-    def _visit_in(self, in_: In):  # cast lists and json to string and regex-match
+    def _visit_in(self, in_: In):
         if isinstance(in_._rhs, Field):
-            f = cast(getattr(self._orm_class, in_._rhs.value), String)
-            v = in_._lhs
-            # ugly, sqlite's Regex seems not to support (?:,|^)-regexes
-            return or_(f == v,
-                       f.regexp_match(f'^{v},'),
-                       f.regexp_match(f',{v},'),
-                       f.regexp_match(f',{v}$'))
+            col = getattr(self._orm_class, in_._rhs.value)
+            return func.json_array_contains(col, in_._lhs) == True  # noqa: E712
         elif isinstance(in_._rhs, Attribute):
-            return cast(self._orm_class.attributes[in_._rhs.value], String).regexp_match(f'"{in_._lhs}"')
+            return func.json_array_contains(
+                self._orm_class.attributes[in_._rhs.value], in_._lhs
+            ) == True  # noqa: E712
 
     def _visit_in_catalogue(self, in_catalogue: InCatalogue):
         if self._orm_class == orm.Catalogue:
@@ -147,6 +143,22 @@ class Backend:
                                     json_serializer=_serialize_json,
                                     json_deserializer=_deserialize_json)
 
+        @event.listens_for(self.engine, "connect")
+        def _register_sqlite_functions(dbapi_conn, connection_record):
+            import json as json_mod
+            def _json_array_contains(json_str, value):
+                try:
+                    arr = json_mod.loads(json_str) if isinstance(json_str, str) else json_str
+                    return value in arr
+                except (json_mod.JSONDecodeError, TypeError):
+                    return False
+            dbapi_conn.create_function("json_array_contains", 2, _json_array_contains)
+
+        # use BEGIN EXCLUSIVE to lock database exclusively to one process
+        @event.listens_for(self.engine, "begin")
+        def do_begin(conn):
+            conn.exec_driver_sql("BEGIN EXCLUSIVE")
+
         if in_memory:
             import sqlite3
             source = sqlite3.connect("")
@@ -154,22 +166,28 @@ class Backend:
             assert isinstance(self.engine.raw_connection().connection, sqlite3.Connection)  # type: ignore
             source.backup(self.engine.raw_connection().connection, pages=-1)  # type: ignore
 
-        # tempt alembic migration of the database
         from alembic.config import Config
         from alembic import command
+
         alembic_cfg = Config(os.path.join(os.path.dirname(__file__), 'alembic.ini'))
         alembic_cfg.set_main_option("script_location", os.path.join(os.path.dirname(__file__), 'migrations'))
         alembic_cfg.set_main_option("sqlalchemy.url", f'sqlite:///{sqlite_filename}')
-        command.upgrade(alembic_cfg, "head")
 
-        # use BEGIN EXCLUSIVE to lock database exclusively to one process
-        @event.listens_for(self.engine, "begin")
-        def do_begin(conn):
-            conn.exec_driver_sql("BEGIN EXCLUSIVE")
+        if not in_memory:
+            from alembic.script import ScriptDirectory
+            from alembic.migration import MigrationContext
+            script = ScriptDirectory.from_config(alembic_cfg)
+            head = script.get_current_head()
+            with self.engine.connect() as conn:
+                current = MigrationContext.configure(conn).get_current_revision()
+            if current != head:
+                command.upgrade(alembic_cfg, "head")
+        else:
+            command.upgrade(alembic_cfg, "head")
 
         orm.Base.metadata.create_all(self.engine)
 
-        self.session = Session(bind=self.engine, autoflush=True)
+        self.session = Session(bind=self.engine, autoflush=False)
 
     def _copy_to_tmp(self, source_file) -> str:
         # temp dir lives as long as the object
@@ -182,12 +200,8 @@ class Backend:
         self.session.close()
         self.engine.dispose()
 
-    def _specialiced_serialization(self, key, value):
-        if key == "predicate":
-            return pickle.dumps(value, protocol=3)
-
     def add_catalogue(self, catalogue: Dict) -> orm.Catalogue:
-        serialized_predicate = self._specialiced_serialization('predicate', catalogue['predicate']) \
+        serialized_predicate = catalogue['predicate'].to_dict() \
             if catalogue['predicate'] is not None else None
 
         entity = orm.Catalogue(catalogue['name'],
@@ -210,8 +224,9 @@ class Backend:
                          event['attributes'])
 
     def add_events_to_catalogue(self, catalogue: orm.Catalogue, events: List[orm.Event]) -> None:
+        existing_ids = {e.id for e in catalogue.events}
         for e in events:
-            if e in catalogue.events:
+            if e.id in existing_ids:
                 raise ValueError('Event is already in catalogue.')
         catalogue.events.extend(events)
 
@@ -223,8 +238,8 @@ class Backend:
                     raise ValueError('Event is not in catalogue.')
 
     def update_field(self, entity: Union[orm.Event, orm.Catalogue], key: str, value) -> None:
-        if key in ['predicate']:
-            value = self._specialiced_serialization(key, value)
+        if key == 'predicate' and value is not None:
+            value = value.to_dict()
         setattr(entity, key, value)
 
     @staticmethod
@@ -262,66 +277,34 @@ class Backend:
             q = q.filter(f)
         return q
 
-    def get_catalogues(self, base: Dict = {}) -> List[Dict]:
-        catalogues = []
-        for (c, assigned) in self._create_query(base, orm.Catalogue, 'events', removed=base['removed']):
-            catalogue = {"name": c.name,
-                         "author": c.author,
-                         "uuid": c.uuid,
-                         "tags": c.tags,
-                         "predicate": pickle.loads(c.predicate) if c.predicate else None,
-                         "attributes": c.attributes,
-                         "entity": c}
-            catalogues.append(catalogue)
+    def get_catalogues(self, base: Dict = {}) -> List[orm.Catalogue]:
+        self.session.flush()
+        return [c for (c, _) in self._create_query(base, orm.Catalogue, 'events', removed=base['removed'])]
 
-        return catalogues
-
-    def get_events(self, base: Dict = {}) -> List[Dict]:
-        events = []
+    def get_events(self, base: Dict = {}) -> List[tuple]:
+        self.session.flush()
+        results = []
         for (e, assigned) in self._create_query(base, orm.Event, 'catalogues', removed=base['removed']):
-            event = {
-                "start": e.start,
-                "stop": e.stop,
-                "author": e.author,
-                "uuid": e.uuid,
-                "tags": e.tags,
-                "products": e.products,
-                "rating": e.rating,
-                "attributes": e.attributes,
-                "entity": e,
-                "is_assigned": assigned,
-            }
-            events.append(event)
+            results.append((e, bool(assigned)))
+        return results
 
-        return events
-
-    def get_events_by_uuid_list(self, uuids: List[str]) -> Dict[str, Dict]: # type: ignore
-        d = {}
-        for e in self.session.query(orm.Event).filter(orm.Event.uuid.in_(uuids)).all():
-            d[e.uuid] = {
-                "start": e.start,
-                "stop": e.stop,
-                "author": e.author,
-                "uuid": e.uuid,
-                "tags": e.tags,
-                "products": e.products,
-                "rating": e.rating,
-                "attributes": e.attributes,
-                "entity": e}
-
-        return d # type: ignore
+    def get_events_by_uuid_list(self, uuids: List[str]) -> Dict[str, orm.Event]:
+        self.session.flush()
+        return {e.uuid: e for e in self.session.query(orm.Event).filter(orm.Event.uuid.in_(uuids)).all()}
 
     def get_existing_tags(self) -> Set[str]:
-        def flatten(obj):
-            if isinstance(obj, list) or isinstance(obj, engine.row.Row):
-                for item in obj:
-                    yield from flatten(item)
-            else:
-                yield obj
-
-        events_tags = set(flatten(self.session.query(orm.Event.tags).filter(orm.Event.tags != []).all()))
-        catalogues_tags = set(flatten(self.session.query(orm.Catalogue.tags).filter(orm.Catalogue.tags != []).all()))
-        return events_tags.union(catalogues_tags)
+        self.session.flush()
+        import sqlalchemy as sa
+        result = set()
+        for (tag,) in self.session.execute(
+            sa.text("SELECT DISTINCT j.value FROM events, json_each(events.tags) AS j")
+        ).fetchall():
+            result.add(tag)
+        for (tag,) in self.session.execute(
+            sa.text("SELECT DISTINCT j.value FROM catalogues, json_each(catalogues.tags) AS j")
+        ).fetchall():
+            result.add(tag)
+        return result
 
     def add_and_flush(self, entity_list: List[Union[orm.Event, orm.Catalogue]]):
         self.session.add_all(entity_list)

@@ -7,7 +7,6 @@ from io import StringIO ,BytesIO
 from typing import Dict, List, Union, Tuple, Any, Optional, Type, Callable
 from uuid import uuid4
 
-from sqlalchemy_utils import table_name
 
 from .base import get_catalogues, get_events, _Catalogue, _Event, backend, Session, _listify
 from .filtering import UUID
@@ -67,17 +66,20 @@ def __canonicalize_from_dict(data: Dict[str, Any]) -> __CanonicalizedTSCatData:
         if event['uuid'] not in events:
             continue
 
-        # to compare the existing event, the to-be-imported event is transformed to an in event from the backend
-        check_event = events[event['uuid']]
-        del check_event['entity']
-        check_event.update(check_event['attributes'])
-        del check_event['attributes']
-
-        check_event['start'] = dt.datetime.isoformat(check_event['start'])
-        check_event['stop'] = dt.datetime.isoformat(check_event['stop'])
+        existing = events[event['uuid']]
+        check_event = {
+            'start': dt.datetime.isoformat(existing.start),
+            'stop': dt.datetime.isoformat(existing.stop),
+            'author': existing.author,
+            'uuid': existing.uuid,
+            'tags': existing.tags,
+            'products': existing.products,
+            'rating': existing.rating,
+        }
+        check_event.update(existing.attributes or {})
 
         if check_event != event:
-            raise ValueError(f'Import: event with UUID {event["uuid"]} already exists in database, ' +
+            raise ValueError(f'Import: event with UUID {event["uuid"]} already exists in database, '
                              'but with different values.')
         data['events'].remove(event)
 

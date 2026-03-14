@@ -1,9 +1,8 @@
 from sqlalchemy import Column, Integer, DateTime, ForeignKey, UnicodeText, Boolean, Table, String, \
-    LargeBinary, Index, JSON
+    Index, JSON
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import relationship
-from sqlalchemy_utils import ScalarListType  # type: ignore
 
 from typing import List, Dict, Any, Optional
 
@@ -35,8 +34,8 @@ class Event(Base):
     stop = Column(DateTime, nullable=False)
     author = Column(UnicodeText, nullable=False)
 
-    tags: List[str] = Column(ScalarListType(str), default=[], info={"type": (list, "string_list")})
-    products: List[str] = Column(ScalarListType(str), default=[], info={"type": (list, "string_list")})
+    tags: List[str] = Column(JSON, default=list)
+    products: List[str] = Column(JSON, default=list)
     rating: int = Column(Integer, default=None, nullable=True)
 
     removed: bool = Column(Boolean, default=False, nullable=False)
@@ -66,9 +65,9 @@ class Catalogue(Base):
 
     name = Column(UnicodeText, nullable=False)
     author = Column(UnicodeText, nullable=False)
-    predicate = Column(LargeBinary, nullable=True)
+    predicate = Column(JSON, nullable=True)
 
-    tags: List[str] = Column(ScalarListType(str), default=[], info={"type": (list, "string_list")})
+    tags: List[str] = Column(JSON, default=list)
 
     removed: bool = Column(Boolean, default=False, nullable=False)
 
@@ -78,7 +77,7 @@ class Catalogue(Base):
                                        backref="catalogues",
                                        secondary=event_in_catalogue_association_table)
 
-    def __init__(self, name: str, author: str, uuid: str, tags: List[str], predicate: Optional[bytes], attributes: Dict):
+    def __init__(self, name: str, author: str, uuid: str, tags: List[str], predicate: Optional[dict], attributes: Dict):
         self.name = name
         self.author = author
         self.uuid = uuid

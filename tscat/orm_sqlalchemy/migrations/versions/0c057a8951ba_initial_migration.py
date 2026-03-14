@@ -8,7 +8,6 @@ Create Date: 2024-03-19 17:29:54.371885
 from typing import Sequence, Union
 
 import sqlalchemy as sa
-import sqlalchemy_utils
 from alembic import op
 from sqlalchemy.engine.reflection import Inspector
 
@@ -34,8 +33,8 @@ def upgrade() -> None:
                     sa.Column('uuid', sa.String(length=36), nullable=False),
                     sa.Column('name', sa.UnicodeText(), nullable=False),
                     sa.Column('author', sa.UnicodeText(), nullable=False),
-                    sa.Column('predicate', sa.LargeBinary(), nullable=True),
-                    sa.Column('tags', sqlalchemy_utils.types.scalar_list.ScalarListType(), nullable=True),
+                    sa.Column('predicate', sa.JSON(), nullable=True),
+                    sa.Column('tags', sa.JSON(), nullable=True),
                     sa.Column('removed', sa.Boolean(), nullable=False),
                     sa.Column('attributes', sa.JSON(), nullable=True),
                     sa.PrimaryKeyConstraint('id')
@@ -47,8 +46,8 @@ def upgrade() -> None:
                     sa.Column('start', sa.DateTime(), nullable=False),
                     sa.Column('stop', sa.DateTime(), nullable=False),
                     sa.Column('author', sa.UnicodeText(), nullable=False),
-                    sa.Column('tags', sqlalchemy_utils.types.scalar_list.ScalarListType(), nullable=True),
-                    sa.Column('products', sqlalchemy_utils.types.scalar_list.ScalarListType(), nullable=True),
+                    sa.Column('tags', sa.JSON(), nullable=True),
+                    sa.Column('products', sa.JSON(), nullable=True),
                     sa.Column('removed', sa.Boolean(), nullable=False),
                     sa.Column('attributes', sa.JSON(), nullable=True),
                     sa.PrimaryKeyConstraint('id')
