@@ -103,7 +103,7 @@ class Predicate:
             'UUID': UUID,
             'InCatalogue': InCatalogue,
         }
-        return _type_map[d['type']]._from_dict(d)
+        return _type_map[d['type']]._from_dict(d)  # type: ignore[attr-defined]
 
 
 class Comparison(Predicate):

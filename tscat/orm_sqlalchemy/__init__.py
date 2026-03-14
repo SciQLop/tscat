@@ -290,7 +290,7 @@ class Backend:
 
     def get_events_by_uuid_list(self, uuids: List[str]) -> Dict[str, orm.Event]:
         self.session.flush()
-        return {e.uuid: e for e in self.session.query(orm.Event).filter(orm.Event.uuid.in_(uuids)).all()}
+        return {e.uuid: e for e in self.session.query(orm.Event).filter(orm.Event.uuid.in_(uuids)).all()}  # type: ignore[misc]
 
     def get_existing_tags(self) -> Set[str]:
         self.session.flush()

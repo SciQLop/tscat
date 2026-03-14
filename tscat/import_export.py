@@ -68,8 +68,8 @@ def __canonicalize_from_dict(data: Dict[str, Any]) -> __CanonicalizedTSCatData:
 
         existing = events[event['uuid']]
         check_event = {
-            'start': dt.datetime.isoformat(existing.start),
-            'stop': dt.datetime.isoformat(existing.stop),
+            'start': dt.datetime.isoformat(existing.start),  # type: ignore[arg-type]
+            'stop': dt.datetime.isoformat(existing.stop),  # type: ignore[arg-type]
             'author': existing.author,
             'uuid': existing.uuid,
             'tags': existing.tags,
