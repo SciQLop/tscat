@@ -13,9 +13,8 @@ from appdirs import user_data_dir
 from typing import Union, List, Dict, Type, Set
 from typing_extensions import Literal
 
-from sqlalchemy import create_engine, and_, or_, not_, event, func, cast, String, engine
-from sqlalchemy.orm import Session, Query
-from sqlalchemy.pool.base import _ConnectionFairy
+from sqlalchemy import create_engine, and_, or_, not_, event, func, select
+from sqlalchemy.orm import Session, sessionmaker
 
 from operator import __eq__, __ne__, __ge__, __gt__, __le__, __lt__
 
@@ -162,9 +161,8 @@ class Backend:
         if in_memory:
             import sqlite3
             source = sqlite3.connect("")
-            assert isinstance(self.engine.raw_connection(), _ConnectionFairy)
-            assert isinstance(self.engine.raw_connection().connection, sqlite3.Connection)  # type: ignore
-            source.backup(self.engine.raw_connection().connection, pages=-1)  # type: ignore
+            raw_conn = self.engine.raw_connection()
+            source.backup(raw_conn.driver_connection, pages=-1)  # type: ignore[arg-type]
 
         from alembic.config import Config
         from alembic import command
@@ -187,7 +185,8 @@ class Backend:
 
         orm.Base.metadata.create_all(self.engine)
 
-        self.session = Session(bind=self.engine, autoflush=False)
+        self._session_factory = sessionmaker(bind=self.engine, autoflush=False)
+        self.session = self._session_factory()
 
     def _copy_to_tmp(self, source_file) -> str:
         # temp dir lives as long as the object
@@ -244,16 +243,19 @@ class Backend:
 
     @staticmethod
     def update_attribute(entity: Union[orm.Event, orm.Catalogue], key: str, value) -> None:
+        if entity.attributes is None:
+            entity.attributes = {}
         entity.attributes[key] = value
 
     @staticmethod
     def delete_attribute(entity: Union[orm.Event, orm.Catalogue], key: str) -> None:
-        del entity.attributes[key]
+        if entity.attributes is not None:
+            del entity.attributes[key]
 
     def _create_query(self, base: Dict,
                       orm_class: Union[Type[orm.Event], Type[orm.Catalogue]],
                       field: Union[Literal['events'], Literal['catalogues']],
-                      removed: bool = False) -> Query:
+                      removed: bool = False):
         f = None
 
         if base.get('predicate', None) is not None:
@@ -272,25 +274,28 @@ class Backend:
         else:
             f = and_(getattr(orm_class, 'removed') == removed, f)
 
-        q = self.session.query(orm_class, entity_filter) # type: ignore
-        if f is not None:
-            q = q.filter(f)
-        return q
+        if entity_filter is not None:
+            stmt = select(orm_class, entity_filter).filter(f)
+        else:
+            stmt = select(orm_class).filter(f)
+        return self.session.execute(stmt), entity_filter is not None
 
     def get_catalogues(self, base: Dict = {}) -> List[orm.Catalogue]:
         self.session.flush()
-        return [c for (c, _) in self._create_query(base, orm.Catalogue, 'events', removed=base['removed'])]
+        rows, has_filter = self._create_query(base, orm.Catalogue, 'events', removed=base['removed'])
+        return [row[0] for row in rows]
 
     def get_events(self, base: Dict = {}) -> List[tuple]:
         self.session.flush()
-        results = []
-        for (e, assigned) in self._create_query(base, orm.Event, 'catalogues', removed=base['removed']):
-            results.append((e, bool(assigned)))
-        return results
+        rows, has_filter = self._create_query(base, orm.Event, 'catalogues', removed=base['removed'])
+        if has_filter:
+            return [(row[0], bool(row[1])) for row in rows]
+        return [(row[0], False) for row in rows]
 
     def get_events_by_uuid_list(self, uuids: List[str]) -> Dict[str, orm.Event]:
         self.session.flush()
-        return {e.uuid: e for e in self.session.query(orm.Event).filter(orm.Event.uuid.in_(uuids)).all()}  # type: ignore[misc]
+        stmt = select(orm.Event).filter(orm.Event.uuid.in_(uuids))
+        return {e.uuid: e for e in self.session.scalars(stmt).all()}
 
     def get_existing_tags(self) -> Set[str]:
         self.session.flush()
