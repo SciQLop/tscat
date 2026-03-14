@@ -1,6 +1,6 @@
 import datetime as dt
 
-from typing import Union, TYPE_CHECKING
+from typing import Optional, Union, TYPE_CHECKING
 from typing_extensions import Literal
 import uuid
 
@@ -62,7 +62,11 @@ class Attribute(_Member):
 
 
 def _member_from_dict(d: dict) -> _Member:
-    return Field(d['name']) if d['type'] == 'Field' else Attribute(d['name'])
+    if d['type'] == 'Field':
+        return Field(d['name'])
+    if d['type'] == 'Attribute':
+        return Attribute(d['name'])
+    raise ValueError(f"Unknown member type: {d['type']}")
 
 class Predicate:
     def __eq__(self, o):
@@ -244,7 +248,7 @@ class UUID(Comparison):
 
 
 class InCatalogue(Predicate):
-    def __init__(self, catalogue: '_Catalogue'):
+    def __init__(self, catalogue: 'Optional[_Catalogue]'):
         self.catalogue = catalogue
 
     def __repr__(self):

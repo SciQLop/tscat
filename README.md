@@ -41,13 +41,13 @@ Retrieve events matching conditions using a natural Python DSL:
 
 ```python
 from tscat import get_events
-from tscat.filtering import event
+from tscat.filtering import event, In, Field
 
 # Events after a date
 get_events(event.start >= datetime(2023, 1, 2))
 
 # Combine predicates with &, |, ~
-get_events((event.author == "Alice") & (event.tags == "inbound"))
+get_events((event.author == "Alice") & In("inbound", Field("tags")))
 
 # Filter on custom attributes
 get_events(event.Bz_max > 10.0)
