@@ -10,7 +10,7 @@ from tempfile import mkdtemp
 import orjson
 from appdirs import user_data_dir
 
-from typing import Union, List, Dict, Type, Set
+from typing import Optional, Union, List, Dict, Type, Set
 from typing_extensions import Literal
 
 from sqlalchemy import create_engine, and_, or_, not_, event, func, select
@@ -291,6 +291,50 @@ class Backend:
         if has_filter:
             return [(row[0], bool(row[1])) for row in rows]
         return [(row[0], False) for row in rows]
+
+    def get_events_raw(self, base: Dict = {}) -> Optional[List[tuple]]:
+        """Fast path: returns raw tuples (id, start, stop, author, uuid, tags, products, rating, attributes, is_assigned).
+        Bypasses ORM hydration for bulk reads."""
+        self.session.flush()
+
+        events_t = orm.Event.__table__
+        cols = [events_t.c.id, events_t.c.start, events_t.c.stop, events_t.c.author,
+                events_t.c.uuid, events_t.c.tags, events_t.c.products, events_t.c.rating,
+                events_t.c.attributes]
+
+        removed = base.get('removed', False)
+        predicate = base.get('predicate', None)
+        entity = base.get('entity', None)
+
+        if entity is not None:
+            # catalogue-based query — fall back to ORM path for join handling
+            return None  # signal caller to use ORM path
+
+        filters = [events_t.c.removed == removed]
+        if predicate is not None:
+            filters.append(PredicateVisitor(orm.Event).visit_predicate(predicate))
+
+        stmt = select(*cols).where(and_(*filters))
+        conn = self.session.connection()
+
+        from sqlalchemy.engine import Row
+        rows = conn.execute(stmt).fetchall()
+
+        result = []
+        for row in rows:
+            row_id, start, stop, author, uuid, tags, products, rating, attributes = row
+            if isinstance(tags, str):
+                tags = orjson.loads(tags)
+            if isinstance(products, str):
+                products = orjson.loads(products)
+            if isinstance(attributes, str):
+                attributes = orjson.loads(attributes)
+            if isinstance(start, str):
+                start = dt.datetime.fromisoformat(start)
+            if isinstance(stop, str):
+                stop = dt.datetime.fromisoformat(stop)
+            result.append((row_id, start, stop, author, uuid, tags, products, rating, attributes))
+        return result
 
     def get_events_by_uuid_list(self, uuids: List[str]) -> Dict[str, orm.Event]:
         self.session.flush()
