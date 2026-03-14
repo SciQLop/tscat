@@ -43,6 +43,9 @@ class Field(_Member):
     def __repr__(self):
         return f"Field('{self.value}')"
 
+    def to_dict(self):
+        return {"type": "Field", "name": self.value}
+
 
 class Attribute(_Member):
     def __init__(self, name: str):
@@ -51,8 +54,15 @@ class Attribute(_Member):
     def __repr__(self):
         return f"Attribute('{self.value}')"
 
+    def to_dict(self):
+        return {"type": "Attribute", "name": self.value}
+
     def exists(self) -> 'Predicate':
         return Has(self)
+
+
+def _member_from_dict(d: dict) -> _Member:
+    return Field(d['name']) if d['type'] == 'Field' else Attribute(d['name'])
 
 class Predicate:
     def __eq__(self, o):
@@ -77,6 +87,24 @@ class Predicate:
     def __invert__(self):
         return Not(self)
 
+    def to_dict(self) -> dict:
+        raise NotImplementedError
+
+    @staticmethod
+    def from_dict(d: dict) -> 'Predicate':
+        _type_map = {
+            'Comparison': Comparison,
+            'Match': Match,
+            'Not': Not,
+            'Has': Has,
+            'All': All,
+            'Any': Any,
+            'In': In,
+            'UUID': UUID,
+            'InCatalogue': InCatalogue,
+        }
+        return _type_map[d['type']]._from_dict(d)
+
 
 class Comparison(Predicate):
     def __init__(self,
@@ -92,6 +120,21 @@ class Comparison(Predicate):
     def __repr__(self):
         return f"Comparison('{self._op}', {self._lhs}, {repr(self._rhs)})"
 
+    def to_dict(self):
+        d = {"type": "Comparison", "op": self._op, "lhs": self._lhs.to_dict(), "rhs": self._rhs}
+        if isinstance(self._rhs, dt.datetime):
+            d["rhs"] = self._rhs.isoformat()
+            d["rhs_type"] = "datetime"
+        return d
+
+    @classmethod
+    def _from_dict(cls, d):
+        lhs = _member_from_dict(d['lhs'])
+        rhs = d['rhs']
+        if d.get('rhs_type') == 'datetime':
+            rhs = dt.datetime.fromisoformat(rhs)
+        return cls(d['op'], lhs, rhs)
+
 
 class Match(Predicate):
     def __init__(self,
@@ -103,6 +146,13 @@ class Match(Predicate):
     def __repr__(self):
         return f"Match({self._lhs}, {repr(self._rhs)})"
 
+    def to_dict(self):
+        return {"type": "Match", "lhs": self._lhs.to_dict(), "rhs": self._rhs}
+
+    @classmethod
+    def _from_dict(cls, d):
+        return cls(_member_from_dict(d['lhs']), d['rhs'])
+
 
 class Not(Predicate):
     def __init__(self, operand: "Predicate"):
@@ -110,6 +160,13 @@ class Not(Predicate):
 
     def __repr__(self):
         return f"Not({self._operand})"
+
+    def to_dict(self):
+        return {"type": "Not", "operand": self._operand.to_dict()}
+
+    @classmethod
+    def _from_dict(cls, d):
+        return cls(Predicate.from_dict(d['operand']))
 
 
 class Has(Predicate):
@@ -119,6 +176,13 @@ class Has(Predicate):
     def __repr__(self):
         return f"Has({self._operand})"
 
+    def to_dict(self):
+        return {"type": "Has", "operand": self._operand.to_dict()}
+
+    @classmethod
+    def _from_dict(cls, d):
+        return cls(Attribute(d['operand']['name']))
+
 
 class All(Predicate):
     def __init__(self, *args: Predicate):
@@ -127,6 +191,13 @@ class All(Predicate):
     def __repr__(self):
         return "All({})".format(', '.join(repr(p) for p in self._predicates))
 
+    def to_dict(self):
+        return {"type": "All", "predicates": [p.to_dict() for p in self._predicates]}
+
+    @classmethod
+    def _from_dict(cls, d):
+        return cls(*[Predicate.from_dict(p) for p in d['predicates']])
+
 
 class Any(Predicate):
     def __init__(self, *args: Predicate):
@@ -134,6 +205,13 @@ class Any(Predicate):
 
     def __repr__(self):
         return "Any({})".format(', '.join(repr(p) for p in self._predicates))
+
+    def to_dict(self):
+        return {"type": "Any", "predicates": [p.to_dict() for p in self._predicates]}
+
+    @classmethod
+    def _from_dict(cls, d):
+        return cls(*[Predicate.from_dict(p) for p in d['predicates']])
 
 
 class In(Predicate):
@@ -144,11 +222,25 @@ class In(Predicate):
     def __repr__(self):
         return f"In('{self._lhs}', {repr(self._rhs)})"
 
+    def to_dict(self):
+        return {"type": "In", "lhs": self._lhs, "rhs": self._rhs.to_dict()}
+
+    @classmethod
+    def _from_dict(cls, d):
+        return cls(d['lhs'], _member_from_dict(d['rhs']))
+
 
 class UUID(Comparison):
     def __init__(self, uuid_: str):
         uuid.UUID(uuid_, version=4)
         super().__init__('==', Field('uuid'), uuid_)
+
+    def to_dict(self):
+        return {"type": "UUID", "uuid": self._rhs}
+
+    @classmethod
+    def _from_dict(cls, d):
+        return cls(d['uuid'])
 
 
 class InCatalogue(Predicate):
@@ -157,6 +249,21 @@ class InCatalogue(Predicate):
 
     def __repr__(self):
         return f"InCatalogue({self.catalogue})"
+
+    def to_dict(self):
+        return {"type": "InCatalogue",
+                "catalogue_uuid": self.catalogue.uuid if self.catalogue is not None else None}
+
+    @classmethod
+    def _from_dict(cls, d):
+        from . import get_catalogue
+        cat_uuid = d['catalogue_uuid']
+        if cat_uuid is None:
+            return cls(None)
+        cat = get_catalogue(uuid=cat_uuid)
+        if cat is None:
+            raise ValueError(f"InCatalogue references unknown catalogue UUID: {cat_uuid}")
+        return cls(cat)
 
 
 class PredicateRecursionError(Exception):

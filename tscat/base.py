@@ -201,8 +201,6 @@ class _Event(_BackendBasedEntity):
         elif key in ['tags', 'products']:
             if any(not isinstance(v, str) for v in value):
                 raise ValueError("a tag has to be a string")
-            if any(',' in v for v in value):
-                raise ValueError("a string-list value shall not contain a comma")
         elif key == 'rating':
             if value is not None:
                 if not isinstance(value, int):
@@ -211,6 +209,25 @@ class _Event(_BackendBasedEntity):
                     raise ValueError("rating has to be between 1 and 10")
 
         super(_Event, self).__setattr__(key, value)
+
+    @classmethod
+    def _from_db(cls, entity, removed: bool = False) -> '_Event':
+        _set = object.__setattr__
+        obj = object.__new__(cls)
+        _set(obj, '_in_ctor', True)
+        _set(obj, '_removed', removed)
+        _set(obj, 'start', entity.start)
+        _set(obj, 'stop', entity.stop)
+        _set(obj, 'author', entity.author)
+        _set(obj, 'uuid', entity.uuid)
+        _set(obj, 'tags', entity.tags)
+        _set(obj, 'products', entity.products)
+        _set(obj, 'rating', entity.rating)
+        for k, v in (entity.attributes or {}).items():
+            _set(obj, k, v)
+        _set(obj, '_backend_entity', entity)
+        _set(obj, '_in_ctor', False)
+        return obj
 
     def __repr__(self):
         return self.representation('Event')
@@ -267,10 +284,25 @@ class _Catalogue(_BackendBasedEntity):
         elif key == 'tags':
             if any(not isinstance(v, str) for v in value):
                 raise ValueError("a tag has to be a string")
-            if any(',' in v for v in value):
-                raise ValueError("a string-list value shall not contain a comma")
 
         super(_Catalogue, self).__setattr__(key, value)
+
+    @classmethod
+    def _from_db(cls, entity, removed: bool = False) -> '_Catalogue':
+        _set = object.__setattr__
+        obj = object.__new__(cls)
+        _set(obj, '_in_ctor', True)
+        _set(obj, '_removed', removed)
+        _set(obj, 'name', entity.name)
+        _set(obj, 'author', entity.author)
+        _set(obj, 'uuid', entity.uuid)
+        _set(obj, 'tags', entity.tags)
+        _set(obj, 'predicate', Predicate.from_dict(entity.predicate) if entity.predicate else None)
+        for k, v in (entity.attributes or {}).items():
+            _set(obj, k, v)
+        _set(obj, '_backend_entity', entity)
+        _set(obj, '_in_ctor', False)
+        return obj
 
     def __repr__(self):
         return self.representation('Catalogue')
@@ -457,13 +489,9 @@ def get_catalogue(uuid: Optional[str] = None, name: Optional[str] = None, predic
 
     base_dict['removed'] = False  # only get non-removed catalogues
 
-    if (cats := backend().get_catalogues(base_dict)) and len(cats) > 0:
-        cat: Dict[Any, Any] = cats[0]
-        c = _Catalogue(cat['name'], cat['author'], cat['uuid'], cat['tags'], cat['predicate'],
-                       _insert=False, **cat['attributes'])
-        c._backend_entity = cat['entity']
-        c._removed = False
-        return c
+    cats = backend().get_catalogues(base_dict)
+    if cats:
+        return _Catalogue._from_db(cats[0], removed=False)
     return None
 
 
@@ -496,14 +524,8 @@ def get_catalogues(base: Union[Predicate, _Event, None] = None, removed_items: b
 
     base_dict.update({'removed': removed_items})
 
-    catalogues = []
-    for cat in backend().get_catalogues(base_dict):
-        c = _Catalogue(cat['name'], cat['author'], cat['uuid'], cat['tags'], cat['predicate'],
-                       _insert=False, **cat['attributes'])
-        c._backend_entity = cat['entity']
-        c._removed = removed_items
-        catalogues += [c]
-    return catalogues
+    return [_Catalogue._from_db(cat, removed=removed_items)
+            for cat in backend().get_catalogues(base_dict)]
 
 
 def existing_tags() -> Set[str]:
@@ -511,22 +533,11 @@ def existing_tags() -> Set[str]:
     return backend().get_existing_tags()
 
 
-def __backend_to_event(ev: Dict, removed_item: bool) -> _Event:
-    e = _Event(ev['start'], ev['stop'], ev['author'], ev['uuid'], ev['tags'], ev['products'], ev['rating'],
-               **ev['attributes'], _insert=False)
-    e._removed = removed_item
-    e._backend_entity = ev['entity']
-    return e
-
-
 def _get_events_from_predicate_or_none(base: Union[Predicate, None], removed_items: bool) -> List[_Event]:
     base_dict: Dict = {'removed': removed_items}
     if isinstance(base, Predicate):
         base_dict.update({'predicate': base})
-    events = []
-    for ev in backend().get_events(base_dict):
-        events.append(__backend_to_event(ev, removed_items))
-    return events
+    return [_Event._from_db(e, removed=removed_items) for e, _ in backend().get_events(base_dict)]
 
 
 @dataclass
@@ -546,9 +557,9 @@ def _get_events_from_catalogue(base: _Catalogue, removed_items: bool, assigned_o
 
     events = []
     query_info = []
-    for ev in backend().get_events(base_dict):
-        events.append(__backend_to_event(ev, removed_items))
-        query_info.append(EventQueryInformation(assigned=ev['is_assigned']))
+    for e, is_assigned in backend().get_events(base_dict):
+        events.append(_Event._from_db(e, removed=removed_items))
+        query_info.append(EventQueryInformation(assigned=is_assigned))
 
     return events, query_info
 
