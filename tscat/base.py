@@ -15,6 +15,30 @@ _valid_key = re.compile(r'^[A-Za-z][A-Za-z_0-9]*$')
 _backend = None
 
 
+class _LazyBackendEntity:
+    """Defers ORM entity loading until a write operation needs it."""
+    __slots__ = ('_row_id', '_entity')
+
+    def __init__(self, row_id: int):
+        self._row_id = row_id
+        self._entity = None
+
+    def _resolve(self):
+        if self._entity is None:
+            from .orm_sqlalchemy.orm import Event
+            self._entity = backend().session.get(Event, self._row_id)
+        return self._entity
+
+    def __getattr__(self, name):
+        return getattr(self._resolve(), name)
+
+    def __setattr__(self, name, value):
+        if name in ('_row_id', '_entity'):
+            object.__setattr__(self, name, value)
+        else:
+            setattr(self._resolve(), name, value)
+
+
 def backend() -> orm_sqlalchemy.Backend:
     global _backend
     if not _backend:  # pragma: no cover
@@ -48,7 +72,6 @@ class Session:
 
     def _track(self, entity) -> None:
         self.entities.append(entity)
-        backend().session.add(entity)
 
     def create_event(self, *args: Any, **kwargs: Any) -> '_Event':
         e = _Event(*args, **kwargs)
@@ -243,6 +266,28 @@ class _Event(_BackendBasedEntity):
             _set(obj, k, v)
         _set(obj, '_backend_entity', entity)
         _set(obj, '_in_ctor', False)
+        return obj
+
+    @classmethod
+    def _from_row(cls, row, removed: bool = False) -> '_Event':
+        obj = object.__new__(cls)
+        d = {
+            '_in_ctor': True,
+            '_removed': removed,
+            'start': row[1],
+            'stop': row[2],
+            'author': row[3],
+            'uuid': row[4],
+            'tags': row[5],
+            'products': row[6],
+            'rating': row[7],
+        }
+        attrs = row[8]
+        if attrs:
+            d.update(attrs)
+        d['_backend_entity'] = _LazyBackendEntity(row[0])
+        d['_in_ctor'] = False
+        object.__setattr__(obj, '__dict__', d)
         return obj
 
     def __repr__(self):
@@ -559,6 +604,9 @@ def _get_events_from_predicate_or_none(base: Union[Predicate, None], removed_ite
     base_dict: Dict = {'removed': removed_items}
     if isinstance(base, Predicate):
         base_dict.update({'predicate': base})
+    raw = backend().get_events_raw(base_dict)
+    if raw is not None:
+        return [_Event._from_row(row, removed=removed_items) for row in raw]
     return [_Event._from_db(e, removed=removed_items) for e, _ in backend().get_events(base_dict)]
 
 
