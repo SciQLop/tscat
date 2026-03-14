@@ -1,5 +1,5 @@
-Welcome to Time Series Catalogues's documentation!
-======================================
+tscat documentation
+===================
 
 .. toctree::
    :maxdepth: 2
