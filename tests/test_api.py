@@ -507,6 +507,18 @@ class TestImportExportJSON(unittest.TestCase):
         assert get_events() == events
         assert get_events(c)[0] == [events[1]]
 
+    def test_import_catalogue_with_more_events_than_sqlite_variable_limit(self):
+        events = [generate_event() for _ in range(1100)]
+        catalogue = create_catalogue('BigCatalogue', 'Patrick', events=events)
+
+        export_blob = export_json(catalogue)
+        discard()
+        imported = import_json(export_blob)
+        self.assertEqual(len(imported), 1)
+        imported_events = get_events(imported[0])
+        assert isinstance(imported_events, tuple)
+        self.assertEqual(len(imported_events[0]), 1100)
+
 
 class TestTrash(unittest.TestCase):
     def setUp(self) -> None:

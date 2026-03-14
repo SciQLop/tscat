@@ -314,8 +314,14 @@ class Backend:
 
     def get_events_by_uuid_list(self, uuids: List[str]) -> Dict[str, orm.Event]:
         self.session.flush()
-        stmt = select(orm.Event).filter(orm.Event.uuid.in_(uuids))
-        return {e.uuid: e for e in self.session.scalars(stmt).all()}
+        # SQLite limits bind parameters per query (~999), so chunk the list
+        result: Dict[str, orm.Event] = {}
+        chunk_size = 900
+        for i in range(0, len(uuids), chunk_size):
+            chunk = uuids[i:i + chunk_size]
+            stmt = select(orm.Event).filter(orm.Event.uuid.in_(chunk))
+            result.update({e.uuid: e for e in self.session.scalars(stmt).all()})
+        return result
 
     def get_existing_tags(self) -> Set[str]:
         self.session.flush()
