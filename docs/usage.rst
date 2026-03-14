@@ -113,7 +113,7 @@ The ``tscat.filtering`` module provides a composable predicate DSL. Import the `
 .. code-block:: python
 
     from tscat import get_events
-    from tscat.filtering import event
+    from tscat.filtering import event, In, Field
 
     # by time range
     jan_events = get_events(
@@ -124,8 +124,8 @@ The ``tscat.filtering`` module provides a composable predicate DSL. Import the `
     # by author
     get_events(event.author == "Alice")
 
-    # by tag (checks if a tag is present)
-    get_events(event.tags == "MMS")
+    # by tag membership (tags and products are lists — use In)
+    get_events(In("MMS", Field("tags")))
 
     # by custom attribute
     get_events(event.Bz_min < -10.0)
@@ -138,7 +138,7 @@ The ``tscat.filtering`` module provides a composable predicate DSL. Import the `
 
     # combine with & (and) and | (or)
     get_events(
-        (event.tags == "magnetopause") &
+        In("magnetopause", Field("tags")) &
         (event.rating >= 7) &
         (event.Bz_min < -10.0)
     )
@@ -162,10 +162,10 @@ The same DSL works for catalogues via the ``catalogue`` token:
 .. code-block:: python
 
     from tscat import get_catalogues
-    from tscat.filtering import catalogue
+    from tscat.filtering import catalogue, In, Field
 
     get_catalogues(catalogue.author == "Alice")
-    get_catalogues(catalogue.tags == "MMS")
+    get_catalogues(In("MMS", Field("tags")))
     get_catalogues(catalogue.name.matches("Magneto.*"))
 
 
@@ -177,12 +177,12 @@ A catalogue with a ``predicate`` is dynamic — it automatically includes all ev
 .. code-block:: python
 
     from tscat import create_catalogue, get_events, save
-    from tscat.filtering import event
+    from tscat.filtering import event, In, Field
 
     dynamic_cat = create_catalogue(
         "High-quality MMS events",
         author="Alice",
-        predicate=(event.tags == "MMS") & (event.rating >= 8),
+        predicate=In("MMS", Field("tags")) & (event.rating >= 8),
     )
     save()
 

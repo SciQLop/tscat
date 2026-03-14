@@ -172,7 +172,7 @@ class _Event(_BackendBasedEntity):
 
         products_list = list(products) if products else []
         if any(not isinstance(v, str) for v in products_list):
-            raise ValueError("a tag has to be a string")
+            raise ValueError("a product has to be a string")
         _set(self, 'products', products_list)
 
         if rating is not None:
@@ -263,7 +263,7 @@ class _Catalogue(_BackendBasedEntity):
         _set(self, '_removed', False)
 
         if not name:
-            raise ValueError('Catalogue name cannot be emtpy.')
+            raise ValueError('Catalogue name cannot be empty.')
         _set(self, 'name', name)
         _set(self, 'author', author)
 
@@ -302,7 +302,7 @@ class _Catalogue(_BackendBasedEntity):
             UUID(value, version=4)  # throws an exception if not valid
         elif key == 'name':
             if not value:
-                raise ValueError('Catalogue name cannot be emtpy.')
+                raise ValueError('Catalogue name cannot be empty.')
         elif key == 'tags':
             if any(not isinstance(v, str) for v in value):
                 raise ValueError("a tag has to be a string")
