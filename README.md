@@ -1,91 +1,97 @@
-# Time Series Catalogues
+# tscat — Time Series Catalogues
 
 ![Test Status](https://github.com/SciQLop/tscat/actions/workflows/test_main.yml/badge.svg)
 ![Coverage Status](https://codecov.io/gh/SciQLop/tscat/branch/main/graph/badge.svg)
 
+tscat is a Python library for managing catalogues of time intervals (events). It is the catalogue backend for [SciQLop](https://github.com/SciQLop/SciQLop) and is designed for space physics workflows — storing event lists such as magnetopause crossings, ICMEs, or any user-defined intervals with arbitrary metadata.
 
-A library which stores, loads and filters time-series-events and associates them catalogues and
-dynamic catalogues (filter-based).
+Events are persisted in a local SQLite database. No server required.
 
-## Usage
+## Installation
 
-You can install the package using pip:
 ```bash
 pip install tscat
 ```
-You can also install the package from source:
-```bash
-git clone https://github.com/SciQLop/tscat
-cd tscat
-pip install -e .
-```
 
-### Development
-
-This project uses [uv](https://docs.astral.sh/uv/) for development:
-```bash
-uv sync --extra test   # create venv and install deps
-uv run pytest           # run tests
-uv run flake8 tscat     # lint
-```
-
-## Examples
-
-Let's create a simple catalogue with some events and save it:
+## Quick start
 
 ```python
-from tscat import create_catalogue, create_event, add_events_to_catalogue, save
 from datetime import datetime
-# Create a catalogue
-catalogue = create_catalogue("my_catalogue", author="John Doe", description="A sample catalogue", tags=["example", "sample"])
-# Create some events
+from tscat import create_event, create_catalogue, add_events_to_catalogue, save
+
+catalogue = create_catalogue("Bow shock crossings", author="Alice",
+                             tags=["MMS", "bow_shock"])
+
 events = [
-    create_event(start=datetime(2023, 1, 1), stop=datetime(2023, 1, 2), author="Alice", tags=["tag1", "tag2"]),
-    create_event(start=datetime(2023, 1, 3), stop=datetime(2023, 1, 4), author="Bob", tags=["tag3"], some_custom_attribute="value1"),
+    create_event(datetime(2023, 1, 1, 10, 0), datetime(2023, 1, 1, 10, 30),
+                 author="Alice", tags=["inbound"], Bz_max=12.5),
+    create_event(datetime(2023, 1, 3, 14, 0), datetime(2023, 1, 3, 14, 45),
+                 author="Alice", tags=["outbound"], Bz_max=8.3),
 ]
-# Add events to the catalogue
+
 add_events_to_catalogue(catalogue, events)
-# Save changes to the catalogue database
 save()
-
 ```
 
-Let's create a catalogue from a pandas DataFrame:
+Any keyword argument beyond the fixed fields (`start`, `stop`, `author`, `tags`, `products`, `rating`) becomes a custom attribute stored alongside the event.
+
+## Filtering
+
+Retrieve events matching conditions using a natural Python DSL:
+
 ```python
-import pandas as pd
-from tscat import create_catalogue, create_event, add_events_to_catalogue, save
+from tscat import get_events
+from tscat.filtering import event
 
-# Let's fetch some catalogue on GitHub
-df = pd.read_pickle("https://helioforecast.space/static/sync/icmecat/HELIO4CAST_ICMECAT_v23_pandas.p")[0]
+# Events after a date
+get_events(event.start >= datetime(2023, 1, 2))
 
-# Create events from the DataFrame
-events = [
-    create_event(
-        start=row['mo_start_time'],
-        stop=row['mo_end_time'],
-        author="Christian Möstl",
-        tags=["HELIO4CAST", "ICMECAT"],
-        **{k: v for k, v in row.items() if k not in ['mo_start_time', 'mo_end_time']}
-    )
-    for _, row in df.iterrows()
-]
+# Combine predicates with &, |, ~
+get_events((event.author == "Alice") & (event.tags == "inbound"))
 
-# Create a catalogue from the DataFrame
-catalogue = create_catalogue("icmecat", author="Christian Möstl", description="HELIO4CAST ICMECAT catalogue", tags=["HELIO4CAST", "ICMECAT"], events=events)
-
-# save the catalogue
-save()
+# Filter on custom attributes
+get_events(event.Bz_max > 10.0)
 ```
 
-## Features
+## Dynamic catalogues
 
-- Store and manage time-series events in catalogues
-- Filter events using dynamic catalogue queries
-- Load and export catalogue data
-- Associate events with metadata and attributes
-- Time-based filtering and search capabilities
-- Python API for programmatic access
+A catalogue with a `predicate` automatically includes all matching events:
 
+```python
+from tscat import create_catalogue
+from tscat.filtering import event
 
-* Free software: GNU General Public License v3
+dynamic = create_catalogue(
+    "High Bz events", author="Alice",
+    predicate=event.Bz_max > 10.0,
+)
+```
 
+## Import / export
+
+Share catalogues as JSON or VOTable (AMDA-compatible):
+
+```python
+from tscat import export_json, import_json, export_votable_str
+
+json_str = export_json(catalogue)
+import_json(json_str)  # into another database
+```
+
+## Documentation
+
+Full usage guide: [docs/usage.rst](docs/usage.rst)
+
+## Development
+
+This project uses [uv](https://docs.astral.sh/uv/):
+
+```bash
+uv sync --extra test
+uv run pytest
+uv run flake8 tscat tests
+```
+
+## License
+
+GNU General Public License v3
