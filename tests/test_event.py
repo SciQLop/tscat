@@ -4,8 +4,9 @@ import unittest
 
 from ddt import data, ddt, unpack  # type: ignore
 
+import tscat
 import tscat.orm_sqlalchemy
-from tscat import create_event
+from tscat import create_event, get_events, save
 from tscat.filtering import Field, Comparison
 
 
@@ -183,3 +184,25 @@ class TestEvent(unittest.TestCase):
         self.assertEqual(len(es), 2)
         self.assertTrue(info[0].assigned)
         self.assertFalse(info[1].assigned)
+
+    def test_lazy_backend_entity_write_through(self):
+        t1 = dt.datetime.now()
+        t2 = t1 + dt.timedelta(days=1)
+        create_event(t1, t2, "Patrick")
+        save()
+
+        events = get_events()
+        self.assertEqual(len(events), 1)
+        e = events[0]
+        e.author = "Nicolas"
+        save()
+
+        events = get_events()
+        self.assertEqual(events[0].author, "Nicolas")
+
+    def test_remove_events_from_catalogue_unknown_uuid(self):
+        t1 = dt.datetime.now()
+        t2 = t1 + dt.timedelta(days=1)
+        e = create_event(t1, t2, "Patrick")
+        with self.assertRaises(ValueError):
+            tscat.remove_events_from_catalogue("nonexistent-uuid", [e])

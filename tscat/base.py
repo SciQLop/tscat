@@ -604,10 +604,7 @@ def _get_events_from_predicate_or_none(base: Union[Predicate, None], removed_ite
     base_dict: Dict = {'removed': removed_items}
     if isinstance(base, Predicate):
         base_dict.update({'predicate': base})
-    raw = backend().get_events_raw(base_dict)
-    if raw is not None:
-        return [_Event._from_row(row, removed=removed_items) for row in raw]
-    return [_Event._from_db(e, removed=removed_items) for e, _ in backend().get_events(base_dict)]
+    return [_Event._from_row(row, removed=removed_items) for row in backend().get_events_raw(base_dict)]
 
 
 @dataclass
