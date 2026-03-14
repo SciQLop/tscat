@@ -82,9 +82,9 @@ class _BackendBasedEntity:
         return f'{name}({fix}) attributes({kv})'
 
     def dump(self) -> dict:
-        ret = self.variable_attributes()
+        ret = {}
         for k, v in self.__dict__.items():
-            if k in self._fixed_keys:
+            if k in self._fixed_keys or _valid_key.match(k):
                 ret[k] = v
         return ret
 
@@ -126,14 +126,11 @@ class _BackendBasedEntity:
             backend().delete_attribute(self._backend_entity, key)
 
     def __eq__(self, o):
-        if sorted(filter(_valid_key.match, self.__dict__.keys())) != \
-            sorted(filter(_valid_key.match, o.__dict__.keys())):
+        self_keys = sorted(k for k in self.__dict__ if _valid_key.match(k))
+        o_keys = sorted(k for k in o.__dict__ if _valid_key.match(k))
+        if self_keys != o_keys:
             return False
-
-        for k in sorted(filter(_valid_key.match, self.__dict__.keys())):
-            if self.__dict__[k] != o.__dict__[k]:
-                return False
-        return True
+        return all(self.__dict__[k] == o.__dict__[k] for k in self_keys)
 
     def remove(self, permanently: bool = False) -> None:
         self._removed = True
@@ -161,26 +158,44 @@ class _Event(_BackendBasedEntity):
                  rating: Optional[int] = None,
                  _insert: bool = True,
                  **kwargs):
-        self._in_ctor = True
-        super().__init__()
+        _set = object.__setattr__
+        _set(self, '_in_ctor', True)
+        _set(self, '_removed', False)
 
-        self.start = start
-        self.stop = stop
-        self.author = author
-        self.tags = list(tags) if tags else []
-        self.products = list(products) if products else []
-        self.rating = rating
+        if start > stop:
+            raise ValueError("start date has to be before stop date")
+        _set(self, 'start', start)
+        _set(self, 'stop', stop)
+        _set(self, 'author', author)
+
+        tags_list = list(tags) if tags else []
+        if any(not isinstance(v, str) for v in tags_list):
+            raise ValueError("a tag has to be a string")
+        _set(self, 'tags', tags_list)
+
+        products_list = list(products) if products else []
+        if any(not isinstance(v, str) for v in products_list):
+            raise ValueError("a tag has to be a string")
+        _set(self, 'products', products_list)
+
+        if rating is not None:
+            if not isinstance(rating, int):
+                raise ValueError("rating has to be an integer value")
+            if rating < 1 or rating > 10:
+                raise ValueError("rating has to be between 1 and 10")
+        _set(self, 'rating', rating)
 
         if not uuid:
-            self.uuid = str(uuid4())
+            _set(self, 'uuid', str(uuid4()))
         else:
-            self.uuid = uuid
+            UUID(uuid, version=4)
+            _set(self, 'uuid', uuid)
 
         _verify_attribute_names(kwargs)
         self.__dict__.update(kwargs)
 
         if _insert:
-            self._backend_entity = backend().add_event({
+            _set(self, '_backend_entity', backend().add_event({
                 'start': self.start,
                 'stop': self.stop,
                 'author': self.author,
@@ -189,9 +204,9 @@ class _Event(_BackendBasedEntity):
                 'products': self.products,
                 'rating': self.rating,
                 'attributes': kwargs,
-            })
+            }))
 
-        self._in_ctor = False
+        _set(self, '_in_ctor', False)
 
     def __setattr__(self, key, value):
         if key == 'uuid':
@@ -246,35 +261,41 @@ class _Catalogue(_BackendBasedEntity):
                  predicate: Optional[Predicate] = None,
                  _insert: bool = True,
                  **kwargs):
-        self._in_ctor = True
+        _set = object.__setattr__
+        _set(self, '_in_ctor', True)
+        _set(self, '_removed', False)
 
-        super().__init__()
-
-        self.name = name
-        self.author = author
+        if not name:
+            raise ValueError('Catalogue name cannot be emtpy.')
+        _set(self, 'name', name)
+        _set(self, 'author', author)
 
         if not uuid:
-            self.uuid = str(uuid4())
+            _set(self, 'uuid', str(uuid4()))
         else:
-            self.uuid = uuid
+            UUID(uuid, version=4)
+            _set(self, 'uuid', uuid)
 
-        self.tags = list(tags) if tags else []
-        self.predicate = predicate
+        tags_list = list(tags) if tags else []
+        if any(not isinstance(v, str) for v in tags_list):
+            raise ValueError("a tag has to be a string")
+        _set(self, 'tags', tags_list)
+        _set(self, 'predicate', predicate)
 
         _verify_attribute_names(kwargs)
         self.__dict__.update(kwargs)
 
         if _insert:
-            self._backend_entity = backend().add_catalogue({
+            _set(self, '_backend_entity', backend().add_catalogue({
                 'name': self.name,
                 'author': self.author,
                 'uuid': self.uuid,
                 'tags': self.tags,
                 'predicate': self.predicate,
                 'attributes': kwargs,
-            })
+            }))
 
-        self._in_ctor = False
+        _set(self, '_in_ctor', False)
 
     def is_dynamic(self):
         return self.predicate is not None

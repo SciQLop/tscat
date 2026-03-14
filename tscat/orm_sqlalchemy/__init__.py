@@ -144,12 +144,11 @@ class Backend:
 
         @event.listens_for(self.engine, "connect")
         def _register_sqlite_functions(dbapi_conn, connection_record):
-            import json as json_mod
             def _json_array_contains(json_str, value):
                 try:
-                    arr = json_mod.loads(json_str) if isinstance(json_str, str) else json_str
+                    arr = orjson.loads(json_str) if isinstance(json_str, str) else json_str
                     return value in arr
-                except (json_mod.JSONDecodeError, TypeError):
+                except (orjson.JSONDecodeError, TypeError):
                     return False
             dbapi_conn.create_function("json_array_contains", 2, _json_array_contains)
 
@@ -230,11 +229,12 @@ class Backend:
         catalogue.events.extend(events)
 
     def remove_events_from_catalogue(self, catalogue: orm.Catalogue, events: List[orm.Event]) -> None:
-            for e in events:
-                if e in catalogue.events:
-                    catalogue.events.remove(e)
-                else:
-                    raise ValueError('Event is not in catalogue.')
+        existing = {id(e) for e in catalogue.events}
+        for e in events:
+            if id(e) not in existing:
+                raise ValueError('Event is not in catalogue.')
+        to_remove = {id(e) for e in events}
+        catalogue.events = [e for e in catalogue.events if id(e) not in to_remove]
 
     def update_field(self, entity: Union[orm.Event, orm.Catalogue], key: str, value) -> None:
         if key == 'predicate' and value is not None:
