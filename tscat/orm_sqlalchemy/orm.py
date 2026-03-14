@@ -1,15 +1,15 @@
-from sqlalchemy import Column, Integer, DateTime, ForeignKey, UnicodeText, Boolean, Table, String, \
-    Index, JSON
-from sqlalchemy.ext.declarative import declarative_base
+import datetime as dt
+
+from sqlalchemy import ForeignKey, Table, Column, Integer, Index, String, JSON, func
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from typing import List, Dict, Any, Optional
 
-class _Base:
-    __allow_unmapped__ = True
 
-Base = declarative_base(cls=_Base)
+class Base(DeclarativeBase):
+    pass
+
 
 event_in_catalogue_association_table = \
     Table('event_in_catalogue', Base.metadata,
@@ -26,21 +26,21 @@ event_in_catalogue_association_index = Index(
 class Event(Base):
     __tablename__ = 'events'
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
-    uuid = Column(String(36), index=True, nullable=False, unique=True)
+    uuid: Mapped[str] = mapped_column(String(36), index=True, unique=True)
 
-    start = Column(DateTime, nullable=False)
-    stop = Column(DateTime, nullable=False)
-    author = Column(UnicodeText, nullable=False)
+    start: Mapped[dt.datetime] = mapped_column()
+    stop: Mapped[dt.datetime] = mapped_column()
+    author: Mapped[str] = mapped_column()
 
-    tags: List[str] = Column(JSON, default=list)
-    products: List[str] = Column(JSON, default=list)
-    rating: int = Column(Integer, default=None, nullable=True)
+    tags: Mapped[Optional[List[str]]] = mapped_column(JSON, default=list)
+    products: Mapped[Optional[List[str]]] = mapped_column(JSON, default=list)
+    rating: Mapped[Optional[int]] = mapped_column(default=None)
 
-    removed: bool = Column(Boolean, default=False, nullable=False)
+    removed: Mapped[bool] = mapped_column(default=False)
 
-    attributes: Dict[str, Any] = Column(MutableDict.as_mutable(JSON))
+    attributes: Mapped[Optional[Dict[str, Any]]] = mapped_column(MutableDict.as_mutable(JSON))
 
     def __init__(self, start, stop, author, uuid, tags, products, rating, attributes):
         self.start = start
@@ -59,23 +59,23 @@ class Event(Base):
 class Catalogue(Base):
     __tablename__ = 'catalogues'
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
-    uuid = Column(String(36), index=True, nullable=False, unique=True)
+    uuid: Mapped[str] = mapped_column(String(36), index=True, unique=True)
 
-    name = Column(UnicodeText, nullable=False)
-    author = Column(UnicodeText, nullable=False)
-    predicate = Column(JSON, nullable=True)
+    name: Mapped[str] = mapped_column()
+    author: Mapped[str] = mapped_column()
+    predicate: Mapped[Optional[dict]] = mapped_column(JSON, default=None)
 
-    tags: List[str] = Column(JSON, default=list)
+    tags: Mapped[Optional[List[str]]] = mapped_column(JSON, default=list)
 
-    removed: bool = Column(Boolean, default=False, nullable=False)
+    removed: Mapped[bool] = mapped_column(default=False)
 
-    attributes: Dict[str, Any] = Column(MutableDict.as_mutable(JSON))
+    attributes: Mapped[Optional[Dict[str, Any]]] = mapped_column(MutableDict.as_mutable(JSON))
 
-    events: List[Event] = relationship("Event",
-                                       backref="catalogues",
-                                       secondary=event_in_catalogue_association_table)
+    events: Mapped[List[Event]] = relationship("Event",
+                                               backref="catalogues",
+                                               secondary=event_in_catalogue_association_table)
 
     def __init__(self, name: str, author: str, uuid: str, tags: List[str], predicate: Optional[dict], attributes: Dict):
         self.name = name

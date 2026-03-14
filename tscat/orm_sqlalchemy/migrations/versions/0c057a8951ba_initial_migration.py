@@ -9,7 +9,6 @@ from typing import Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.engine.reflection import Inspector
 
 # revision identifiers, used by Alembic.
 revision: str = '0c057a8951ba'
@@ -23,8 +22,7 @@ def upgrade() -> None:
     # we need to check if the tables already exist but only in this initial migration script
 
     conn = op.get_bind()
-    inspector = Inspector.from_engine(conn) # type: ignore
-    tables = inspector.get_table_names()
+    tables = sa.inspect(conn).get_table_names()
     if 'catalogues' in tables:
         return
 
