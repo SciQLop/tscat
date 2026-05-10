@@ -229,12 +229,12 @@ class Backend:
         catalogue.events.extend(events)
 
     def remove_events_from_catalogue(self, catalogue: orm.Catalogue, events: List[orm.Event]) -> None:
-        existing = {id(e) for e in catalogue.events}
+        existing_ids = {e.id for e in catalogue.events}
         for e in events:
-            if id(e) not in existing:
+            if e.id not in existing_ids:
                 raise ValueError('Event is not in catalogue.')
-        to_remove = {id(e) for e in events}
-        catalogue.events = [e for e in catalogue.events if id(e) not in to_remove]
+        to_remove_ids = {e.id for e in events}
+        catalogue.events = [e for e in catalogue.events if e.id not in to_remove_ids]
 
     def update_field(self, entity: Union[orm.Event, orm.Catalogue], key: str, value) -> None:
         if key == 'predicate' and value is not None:
@@ -353,6 +353,13 @@ class Backend:
 
     def remove(self, entity: Union[orm.Catalogue, orm.Event], permanently: bool = False) -> None:
         if permanently:
+            if isinstance(entity, orm.Event):
+                # Detach from any catalogue.events still holding a reference,
+                # otherwise the in-memory collection keeps the deleted ORM
+                # object and later add_events_to_catalogue() rejects a fresh
+                # event reusing the same UUID.
+                for catalogue in list(entity.catalogues):  # type: ignore[attr-defined]
+                    catalogue.events.remove(entity)
             self.session.delete(entity)
             self.session.flush()
         else:

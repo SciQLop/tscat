@@ -39,6 +39,20 @@ class _LazyBackendEntity:
             setattr(self._resolve(), name, value)
 
 
+def _resolve_be(be):
+    """Resolve a _LazyBackendEntity proxy to the real ORM entity.
+
+    The fast-path query (get_events_raw) wraps rows in _LazyBackendEntity to
+    defer ORM hydration. Code paths that hand the backend entity to SQLAlchemy
+    relationships (catalogue.events.{extend,remove}, session.delete) need the
+    real, identity-mapped ORM object — passing a proxy stores the proxy in the
+    relationship, breaking later membership checks.
+    """
+    if isinstance(be, _LazyBackendEntity):
+        return be._resolve()
+    return be
+
+
 def backend() -> orm_sqlalchemy.Backend:
     global _backend
     if not _backend:  # pragma: no cover
@@ -91,13 +105,13 @@ class Session:
 
     @staticmethod
     def add_events_to_catalogue(catalogue: '_Catalogue', events: Union['_Event', List['_Event']]):
-        backend().add_events_to_catalogue(catalogue._backend_entity,
-                                          [event._backend_entity for event in _listify(events)])
+        backend().add_events_to_catalogue(_resolve_be(catalogue._backend_entity),
+                                          [_resolve_be(event._backend_entity) for event in _listify(events)])
 
     @staticmethod
     def remove_events_from_catalogue(catalogue: '_Catalogue', events: Union['_Event', List['_Event']]):
-        backend().remove_events_from_catalogue(catalogue._backend_entity,
-                                               [event._backend_entity for event in _listify(events)])
+        backend().remove_events_from_catalogue(_resolve_be(catalogue._backend_entity),
+                                               [_resolve_be(event._backend_entity) for event in _listify(events)])
 
 
 
@@ -161,7 +175,7 @@ class _BackendBasedEntity:
     def remove(self, permanently: bool = False) -> None:
         self._removed = True
 
-        backend().remove(self._backend_entity, permanently=permanently)
+        backend().remove(_resolve_be(self._backend_entity), permanently=permanently)
         if permanently:
             del self._backend_entity
 

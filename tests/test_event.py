@@ -206,3 +206,41 @@ class TestEvent(unittest.TestCase):
         e = create_event(t1, t2, "Patrick")
         with self.assertRaises(ValueError):
             tscat.remove_events_from_catalogue("nonexistent-uuid", [e])
+
+    def test_remove_event_fetched_via_predicate_then_member_check(self):
+        # Regression: remove_events_from_catalogue compared by Python id() which
+        # broke whenever the caller looked the event up via get_events(uuid=...)
+        # (fast path → _LazyBackendEntity proxy, different object than the one
+        # already in catalogue.events).
+        t1 = dt.datetime.now()
+        t2 = t1 + dt.timedelta(days=1)
+        e = create_event(t1, t2, "Patrick")
+        c = tscat.create_catalogue("c", "Patrick")
+        tscat.add_events_to_catalogue(c, [e])
+
+        from tscat.filtering import UUID
+        e_again = get_events(UUID(e.uuid))[0]
+        tscat.remove_events_from_catalogue(c, [e_again])
+
+        events, _ = tscat.get_events(c)
+        self.assertEqual(events, [])
+
+    def test_recreate_event_with_same_uuid_after_permanent_delete(self):
+        # Regression: catalogue.events kept the deleted ORM Event, so
+        # add_events_to_catalogue rejected a freshly-created event with the
+        # same UUID even though tscat.get_events(catalogue) reported it empty.
+        t1 = dt.datetime.now()
+        t2 = t1 + dt.timedelta(days=1)
+        e = create_event(t1, t2, "Patrick")
+        c = tscat.create_catalogue("c", "Patrick")
+        tscat.add_events_to_catalogue(c, [e])
+
+        original_uuid = e.uuid
+        e.remove(permanently=True)
+
+        e2 = create_event(t1, t2, "Patrick", uuid=original_uuid)
+        tscat.add_events_to_catalogue(c, [e2])
+
+        events, _ = tscat.get_events(c)
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].uuid, original_uuid)
