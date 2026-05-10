@@ -71,7 +71,13 @@ class Session:
         backend().add_and_flush(self.entities)
 
     def _track(self, entity) -> None:
+        # Add to SA session immediately so that subsequent queries inside the
+        # Session (e.g. flushes triggered by get_events) see consistent state
+        # and Event.catalogues backref population works for newly created
+        # catalogues. Without this, SA emits a "object not in session" warning
+        # and silently skips relationship updates.
         self.entities.append(entity)
+        backend().session.add(entity)
 
     def create_event(self, *args: Any, **kwargs: Any) -> '_Event':
         e = _Event(*args, **kwargs)

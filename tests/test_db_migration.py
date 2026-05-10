@@ -4,6 +4,7 @@ import os
 from glob import glob
 import tscat
 import datetime as dt
+from tscat.filtering import All, Any, Comparison, Match, Has, In, Field, Attribute
 
 
 class DBMigration(unittest.TestCase):
@@ -37,3 +38,17 @@ class DBMigration(unittest.TestCase):
         cats = tscat.get_catalogues()
         self.assertEqual(len(cats), 1)
         self.assertListEqual(cats[0].tags, ['tag1', '#tag2', '', "'as"])
+
+    def test_existing_catalogue_pickled_predicate_migrated_to_json(self):
+        cats = tscat.get_catalogues()
+        self.assertEqual(len(cats), 1)
+        expected = All(
+            Comparison('==', Field('author'), 'Patrick'),
+            Any(
+                Match(Attribute('description'), r'^test.*'),
+                Has(Attribute('priority')),
+            ),
+            In('mars', Field('products')),
+            Comparison('>=', Attribute('score'), 5),
+        )
+        self.assertEqual(repr(cats[0].predicate), repr(expected))
